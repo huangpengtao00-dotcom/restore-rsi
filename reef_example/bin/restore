@@ -1,0 +1,24 @@
+#!/bin/bash
+# `restore` as pi sees it inside a reef episode.
+#
+# reef strips the episode environment down to PATH/TMPDIR (+ pi's own vars), so the
+# toolbox's RESTORE_* knobs cannot be injected from serve.yaml. This wrapper sits first
+# on PATH and pins them: results/cache/trace land in reef_example/work/ (outside the
+# throwaway episode root, which reef deletes), and RESTORE_EPISODE_ID is derived from
+# the episode root's name (cwd is <root>/workspace, root = reef-episode-pi-XXXX), so
+# every episode's verdict.json / output.png / trace lines are keyed without the agent
+# having to pass anything.
+set -e
+HERE="$(cd "$(dirname "$0")/.." && pwd)"
+export RESTORE_RESULTS_DIR="${RESTORE_RESULTS_DIR:-$HERE/work/results}"
+export RESTORE_CACHE_DIR="${RESTORE_CACHE_DIR:-$HERE/work/cache}"
+export RESTORE_TRACE="${RESTORE_TRACE:-$RESTORE_RESULTS_DIR/trace.jsonl}"
+if [ -z "$RESTORE_EPISODE_ID" ]; then
+    parent="$(basename "$(dirname "$PWD")")"
+    case "$parent" in
+        reef-episode-*) RESTORE_EPISODE_ID="${parent#reef-episode-}" ;;
+        *) RESTORE_EPISODE_ID="adhoc-$(date +%s)-$$" ;;
+    esac
+    export RESTORE_EPISODE_ID
+fi
+exec "$HERE/../.venv/bin/restore" "$@"
