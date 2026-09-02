@@ -1,0 +1,85 @@
+# restore-rsi as a reef harness_evolve example: one Reef service on port 8900,
+# state under ./work. Mirrors reef/tutorials/harness_evolve/serve.yaml; the
+# differences are the task source, the grader and the upstream.
+#
+# This file carries both the deployment (`reef:`, `services:`) and the
+# harness_evolve recipe sections (implementation, model, evolution, data). The
+# recipe registry reads named recipes from REEF_RECIPE_CONFIG_DIR, so run.sh
+# runs materialize.py, which copies those four sections into
+# work/recipes/harness_evolve.yaml - with `evolution.tasks` generated from
+# tasks/data/manifest.json for the task ids listed under `restore:` below.
+
+implementation: reef.train.cordis_backend.recipe:CordisRecipe
+
+model:
+  path: litellm/DeepSeek-V4-Flash
+
+# restore-rsi specific (not read by reef; consumed by materialize.py).
+restore:
+  manifest: ../tasks/data/manifest.json
+  # Composite degradations: identity (no-op) scores 0.0 on all three, and the
+  # builtin tool chains top out around 0.25 - a wide window for the loop to
+  # discriminate strategies in. Probe (2026-09-02, .venv/bin/restore score):
+  #   haze_low_light_00  identity 0.000  best chain 0.248 (lowlight_gamma x2)
+  #   haze_low_light_01  identity 0.000  best chain 0.087
+  #   low_light_noise_00 identity 0.000  best chain 0.081 (bilateral -> gamma x2)
+  task_ids:
+    - haze_low_light_00
+    - haze_low_light_01
+    - low_light_noise_00
+
+evolution:
+  adapter: pi
+  # The method package beside this file (harness/): reef.service resolves
+  # these dotted references because run.sh starts it with this cwd.
+  propose: harness.evolution:propose
+  evaluate: harness.evolution:evaluate
+  binary: pi  # headless coding-agent episodes; run.sh puts bin/ first on PATH
+  # Filled by materialize.py from `restore.task_ids` (one prompt per task,
+  # see materialize.py:task_prompt). Kept empty here on purpose.
+  tasks: []
+  # First-boot composition: one empty skill for the proposer to grow. No
+  # provider node - reef renders its own model binding (reef.upstream_*) into
+  # every evaluation episode.
+  seed:
+    - id: restore-strategy
+      name: skill
+      config:
+        name: restore-strategy
+        text: |
+          # restore-strategy
+
+          (empty) Starter skill. The evolution loop replaces this with
+          restoration strategy learned from failing tasks.
+
+data:
+  # One evolve step per report. Only failing traffic batches: a report with
+  # score <= max_score (min_score defaults to 0) enters the batch. The
+  # restore score is PSNR normalised to 0..1, so "below 0.5" is the failure
+  # window here (the tutorial's exact-match grader used 0.0).
+  batch_size: 1
+  max_score: 0.5
+
+reef:
+  host: 127.0.0.1
+  port: 8900
+  recipe: harness_evolve
+  token: reef-local
+  # OpenAI-compatible upstream WITHOUT the /v1 suffix (reef appends it).
+  # Reef proxies recorded traffic here, propose()'s models.served.chat goes
+  # here, and pi episodes are bound here. Key: run.sh exports
+  # REEF_UPSTREAM_API_KEY from ~/.dsh/.env (AIGW_KEY); never in this file.
+  upstream_url: https://aigw.meshy.team
+  upstream_api_key: ${REEF_UPSTREAM_API_KEY}
+  upstream_model: litellm/DeepSeek-V4-Flash
+  agent_record_dir: work/agent-record
+  artifact_repository: work/artifacts.git
+  artifact_work_dir: work/artifact-work
+  artifact_cache_dir: work/artifact-cache
+
+run_dir: work/stack
+
+services:
+  - name: reef
+    command: python3 -m reef.service
+    ready: curl -sf http://127.0.0.1:${reef.port}/healthz

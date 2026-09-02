@@ -3,3 +3,4 @@ __pycache__/
 *.egg-info/
 work/
 tasks/data/
+reef_example/work/

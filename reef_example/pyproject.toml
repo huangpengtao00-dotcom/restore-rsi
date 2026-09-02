@@ -1,0 +1,14 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "restore-rsi-reef-method"
+version = "0.1.0"
+description = "Skill-evolution method package (propose/evaluate) for running restore-rsi as a reef harness_evolve recipe"
+requires-python = ">=3.12"
+dependencies = ["reef-client>=0.2.0", "pyyaml>=6"]
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["harness*"]
