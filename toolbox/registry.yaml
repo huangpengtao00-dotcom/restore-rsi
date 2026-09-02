@@ -1,0 +1,46 @@
+# 复原工具注册表 —— 加工具只改这里,不改代码(修掉 JarvisIR "加一个工具改 9 处" 的问题)。
+#
+# 每个工具:
+#   task:    所属退化类型(agent 规划时的语义分组;同 task 下可有多个候选)
+#   backend: 执行后端
+#     - builtin:<fn>  toolbox/builtin.py 里的经典算法(无 GPU 替身,保证循环在 Mac 上能跑)
+#     - docker:<image> <cmd>  真 JarvisIR 专家模型(以后接入,接口不变:in.png out.png)
+#   cost:    相对耗时(供 agent/调度参考)
+#   note:    给 agent 看的一句话能力描述(会进 diagnose 输出的 tool catalog)
+tools:
+  dehaze_dcp:
+    task: defog
+    backend: builtin:dehaze_dcp
+    cost: 1
+    note: "暗通道先验去雾,适合均匀薄雾;浓雾会残留、可能过暗"
+  lowlight_gamma:
+    task: lighten
+    backend: builtin:lowlight_gamma
+    cost: 1
+    note: "自适应 gamma 提亮,快;噪声会被一起放大"
+  lowlight_clahe:
+    task: lighten
+    backend: builtin:lowlight_clahe
+    cost: 1
+    note: "局部对比度增强(CLAHE),细节好;易产生光晕"
+  denoise_bilateral:
+    task: denoise
+    backend: builtin:denoise_bilateral
+    cost: 2
+    note: "双边滤波去噪,保边;强噪声下会糊"
+  denoise_median:
+    task: denoise
+    backend: builtin:denoise_median
+    cost: 1
+    note: "中值滤波,去椒盐噪声好;细纹理会丢"
+  sharpen_unsharp:
+    task: super_resolution
+    backend: builtin:sharpen_unsharp
+    cost: 1
+    note: "非锐化掩模,补细节;会放大噪声与伪影(常见刷分手段——评估器要盯)"
+  # --- 真模型插槽(有卡/有 docker 后启用,接口一致) ---
+  # ridcp:
+  #   task: defog
+  #   backend: "docker:jarvisir-tools ridcp"
+  #   cost: 8
+  #   note: "RIDCP 码本先验去雾(JarvisIR 专家)"

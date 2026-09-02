@@ -1,0 +1,16 @@
+[project]
+name = "restore-rsi"
+version = "0.0.1"
+description = "JarvisIR restoration loop ported onto reef (self-improving agent infra): toolbox CLI, harness method, task generator."
+requires-python = ">=3.12"
+dependencies = ["numpy>=1.26", "pillow>=10", "pyyaml>=6"]
+
+[project.scripts]
+restore = "toolbox.cli:_entry"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["toolbox", "harness"]
