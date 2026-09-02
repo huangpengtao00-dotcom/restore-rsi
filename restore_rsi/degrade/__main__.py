@@ -93,7 +93,8 @@ def cmd_strip(a) -> int:
                 seeds = {name: derive_seed(a.seed, 2, ci, sev, i, 0, k) for k, name in enumerate(chain)}
                 row.append(_fit(degrade_frame(clean, chain, params, seeds, depth), tile))
             rows.append(np.concatenate(row, axis=1))
-    canvas = np.concatenate(rows, axis=0)
+    width = max(r.shape[1] for r in rows)
+    canvas = np.concatenate([np.pad(r, ((0, 4), (0, width - r.shape[1]), (0, 0))) for r in rows], axis=0)
     out = Path(a.out)
     out.parent.mkdir(parents=True, exist_ok=True)
     Image.fromarray(canvas).save(out)
@@ -102,11 +103,9 @@ def cmd_strip(a) -> int:
 
 
 def _fit(img: np.ndarray, tile: int) -> np.ndarray:
-    """放进 tile×tile 的黑底画布(保持比例,不放大)。"""
+    """横向补到 tile 宽(高度保持),各列等宽对齐。"""
     h, w = img.shape[:2]
-    canvas = np.zeros((tile, tile, 3), np.uint8)
-    canvas[(tile - h) // 2 : (tile - h) // 2 + h, (tile - w) // 2 : (tile - w) // 2 + w] = img
-    return canvas
+    return np.pad(img, ((0, 0), (0, max(0, tile - w) + 2), (0, 0)))
 
 
 def main(argv=None) -> int:

@@ -14,7 +14,7 @@ ICCV'21 的 unprocess/process 链;JarvisIR 仓 MIT 许可),不复用其代码。
 - darkness==1 且噪声为 0 时(severity 0)apply 直接返回输入副本:没有光子损失也没有传感器噪声就没有退化。
 
 severity 映射(1→4 逐档更暗更噪;3–4 落在 JarvisIR 原配置 darkness∈[0.07,0.15] 的区间):
-  darkness  0.50 / 0.28 / 0.15 / 0.08      shot=read(有效方差系数) 8e-6 / 3e-5 / 1e-4 / 3e-4
+  darkness  0.35 / 0.18 / 0.11 / 0.07      shot=read(有效方差系数) 5e-6 / 2e-5 / 8e-5 / 2.5e-4
 其余量按 JarvisIR 原范围抽样:γ∈U[2,3.5],red∈U[1.9,2.4],blue∈U[1.5,1.9],rgb_gain∈U[0.75,0.95],量化 bits∈{2,4,6}。
 """
 
@@ -46,10 +46,10 @@ RGB2XYZ = np.array(
 
 # severity → (darkness, shot, read);severity 0 单独处理
 _SEV = {
-    1: (0.50, 8e-6, 8e-6),
-    2: (0.28, 3e-5, 3e-5),
-    3: (0.15, 1e-4, 1e-4),
-    4: (0.08, 3e-4, 3e-4),
+    1: (0.35, 5e-6, 5e-6),
+    2: (0.18, 2e-5, 2e-5),
+    3: (0.11, 8e-5, 8e-5),
+    4: (0.07, 2.5e-4, 2.5e-4),
 }
 _EPS = 1e-8
 
