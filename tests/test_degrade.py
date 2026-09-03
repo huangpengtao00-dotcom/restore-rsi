@@ -107,6 +107,26 @@ def test_night_noise_variance_monotone_increasing(seed):
     assert shots == sorted(shots)
 
 
+def test_night_severity_ramp_pinned():
+    """档位表的数值本身,不只是它们的顺序。
+
+    单调性测试挡不住一次小幅重调:把 severity 1 的 darkness 从 0.35 改成 0.30,
+    顺序仍然成立,48 项照样全绿(2026-09-03 变异实测)。而这张表是对外声明过的
+    口径——docstring 写明 3/4 档落在 JarvisIR 原配置 darkness∈[0.07,0.15] 里,
+    README 的天花板数字也是在这张表下测的。所以把它钉死:要改,先改这里。
+    """
+    assert night._SEV == {
+        1: (0.35, 5e-6, 5e-6),
+        2: (0.18, 2e-5, 2e-5),
+        3: (0.11, 8e-5, 8e-5),
+        4: (0.07, 2.5e-4, 2.5e-4),
+    }
+    # docstring 的那句"3–4 档落在 JarvisIR 原区间"必须为真
+    assert all(0.07 <= night._SEV[s][0] <= 0.15 for s in (3, 4))
+    # shot 与 read 同值是有意的(见模块 docstring 第二条),不是复制粘贴
+    assert all(shot == read for _, shot, read in night._SEV.values())
+
+
 # ---------------- fog 单调性 ----------------
 
 def _dark_channel_mean(img_u8: np.ndarray) -> float:
