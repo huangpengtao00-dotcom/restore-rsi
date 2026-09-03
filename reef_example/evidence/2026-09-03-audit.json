@@ -1,0 +1,308 @@
+{
+  "diagnose_vs_gt": [
+    {
+      "task_id": "haze_00",
+      "gt": {
+        "applied_order": [
+          "haze"
+        ],
+        "strengths": {
+          "haze": 0.442
+        }
+      },
+      "diagnose": {
+        "haze": 0.541,
+        "low_light": 0.0,
+        "noise": 0.001,
+        "blur": 0.94
+      }
+    },
+    {
+      "task_id": "haze_01",
+      "gt": {
+        "applied_order": [
+          "haze"
+        ],
+        "strengths": {
+          "haze": 0.845
+        }
+      },
+      "diagnose": {
+        "haze": 0.755,
+        "low_light": 0.0,
+        "noise": 0.0,
+        "blur": 0.96
+      }
+    },
+    {
+      "task_id": "low_light_00",
+      "gt": {
+        "applied_order": [
+          "low_light"
+        ],
+        "strengths": {
+          "low_light": 0.608
+        }
+      },
+      "diagnose": {
+        "haze": 0.0,
+        "low_light": 0.529,
+        "noise": 0.001,
+        "blur": 0.947
+      }
+    },
+    {
+      "task_id": "low_light_01",
+      "gt": {
+        "applied_order": [
+          "low_light"
+        ],
+        "strengths": {
+          "low_light": 0.786
+        }
+      },
+      "diagnose": {
+        "haze": 0.0,
+        "low_light": 0.543,
+        "noise": 0.001,
+        "blur": 0.95
+      }
+    },
+    {
+      "task_id": "noise_00",
+      "gt": {
+        "applied_order": [
+          "noise"
+        ],
+        "strengths": {
+          "noise": 0.728
+        }
+      },
+      "diagnose": {
+        "haze": 0.161,
+        "low_light": 0.0,
+        "noise": 1.0,
+        "blur": 0.0
+      }
+    },
+    {
+      "task_id": "noise_01",
+      "gt": {
+        "applied_order": [
+          "noise"
+        ],
+        "strengths": {
+          "noise": 0.595
+        }
+      },
+      "diagnose": {
+        "haze": 0.202,
+        "low_light": 0.0,
+        "noise": 1.0,
+        "blur": 0.097
+      }
+    },
+    {
+      "task_id": "haze_low_light_00",
+      "gt": {
+        "applied_order": [
+          "haze",
+          "low_light"
+        ],
+        "strengths": {
+          "haze": 0.699,
+          "low_light": 0.813
+        }
+      },
+      "diagnose": {
+        "haze": 0.073,
+        "low_light": 0.194,
+        "noise": 0.001,
+        "blur": 0.947
+      }
+    },
+    {
+      "task_id": "haze_low_light_01",
+      "gt": {
+        "applied_order": [
+          "haze",
+          "low_light"
+        ],
+        "strengths": {
+          "haze": 0.733,
+          "low_light": 0.782
+        }
+      },
+      "diagnose": {
+        "haze": 0.13,
+        "low_light": 0.034,
+        "noise": 0.001,
+        "blur": 0.948
+      }
+    },
+    {
+      "task_id": "low_light_noise_00",
+      "gt": {
+        "applied_order": [
+          "low_light",
+          "noise"
+        ],
+        "strengths": {
+          "low_light": 0.771,
+          "noise": 0.818
+        }
+      },
+      "diagnose": {
+        "haze": 0.0,
+        "low_light": 0.413,
+        "noise": 1.0,
+        "blur": 0.0
+      }
+    },
+    {
+      "task_id": "low_light_noise_01",
+      "gt": {
+        "applied_order": [
+          "low_light",
+          "noise"
+        ],
+        "strengths": {
+          "low_light": 0.799,
+          "noise": 0.828
+        }
+      },
+      "diagnose": {
+        "haze": 0.0,
+        "low_light": 0.503,
+        "noise": 1.0,
+        "blur": 0.0
+      }
+    },
+    {
+      "task_id": "haze_noise_00",
+      "gt": {
+        "applied_order": [
+          "haze",
+          "noise"
+        ],
+        "strengths": {
+          "haze": 0.558,
+          "noise": 0.559
+        }
+      },
+      "diagnose": {
+        "haze": 0.403,
+        "low_light": 0.0,
+        "noise": 1.0,
+        "blur": 0.168
+      }
+    },
+    {
+      "task_id": "haze_noise_01",
+      "gt": {
+        "applied_order": [
+          "haze",
+          "noise"
+        ],
+        "strengths": {
+          "haze": 0.692,
+          "noise": 0.673
+        }
+      },
+      "diagnose": {
+        "haze": 0.674,
+        "low_light": 0.0,
+        "noise": 1.0,
+        "blur": 0.028
+      }
+    }
+  ],
+  "score_floor": [
+    {
+      "task_id": "haze_00",
+      "input_psnr_db": 16.65,
+      "normalised": 0.0827,
+      "censored": false
+    },
+    {
+      "task_id": "haze_01",
+      "input_psnr_db": 10.89,
+      "normalised": 0.0,
+      "censored": true
+    },
+    {
+      "task_id": "low_light_00",
+      "input_psnr_db": 9.95,
+      "normalised": 0.0,
+      "censored": true
+    },
+    {
+      "task_id": "low_light_01",
+      "input_psnr_db": 8.53,
+      "normalised": 0.0,
+      "censored": true
+    },
+    {
+      "task_id": "noise_00",
+      "input_psnr_db": 21.23,
+      "normalised": 0.3117,
+      "censored": false
+    },
+    {
+      "task_id": "noise_01",
+      "input_psnr_db": 22.93,
+      "normalised": 0.3965,
+      "censored": false
+    },
+    {
+      "task_id": "haze_low_light_00",
+      "input_psnr_db": 13.19,
+      "normalised": 0.0,
+      "censored": true
+    },
+    {
+      "task_id": "haze_low_light_01",
+      "input_psnr_db": 12.76,
+      "normalised": 0.0,
+      "censored": true
+    },
+    {
+      "task_id": "low_light_noise_00",
+      "input_psnr_db": 8.59,
+      "normalised": 0.0,
+      "censored": true
+    },
+    {
+      "task_id": "low_light_noise_01",
+      "input_psnr_db": 8.63,
+      "normalised": 0.0,
+      "censored": true
+    },
+    {
+      "task_id": "haze_noise_00",
+      "input_psnr_db": 15.74,
+      "normalised": 0.0371,
+      "censored": false
+    },
+    {
+      "task_id": "haze_noise_01",
+      "input_psnr_db": 12.81,
+      "normalised": 0.0,
+      "censored": true
+    }
+  ],
+  "tool_usage_pi_episodes": {
+    "dehaze_dcp": 19,
+    "lowlight_gamma": 43,
+    "sharpen_unsharp": 49,
+    "denoise_bilateral": 57,
+    "lowlight_clahe": 21,
+    "denoise_median": 18
+  },
+  "gate_censoring": {
+    "episode_scores": 18,
+    "pinned_at_zero": 7,
+    "comparisons_with_a_zero": 5,
+    "comparisons_total": 9
+  }
+}

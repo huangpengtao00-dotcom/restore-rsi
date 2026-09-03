@@ -49,15 +49,18 @@ REFS_FILE = HERE / "work" / "task_refs.json"
 REGISTRY_FILE = HERE.parent / "toolbox" / "registry.yaml"
 RESTORE = HERE / "bin" / "restore"
 
-#: A `restore diagnose|run` command *anywhere* in the reply. The served model
-#: does not answer in plain lines: DeepSeek-V4-Flash wraps every command in its
-#: own tool-call markup (`<||DSML||parameter name="command" ...>cd /repo &&
-#: restore diagnose /path</...>`), and other models use markdown fences. Reading
-#: through the wrapper - stop at the first newline, `<`, backtick or shell
-#: separator - is what makes the relay model-agnostic. (The first full run
-#: scored 0 on every recorded task because a line-anchored pattern matched
-#: none of that markup; see README, 实测记录.)
-COMMAND = re.compile(r"restore\s+(diagnose|run)\s+([^\n<`&;|]*)")
+#: A `restore diagnose|run` command in the reply, in *command position*.
+#:
+#: Two failure modes had to be avoided at once. Anchoring to the line start
+#: matches nothing, because DeepSeek-V4-Flash wraps every command in its own
+#: tool-call markup (`<||DSML||parameter name="command" ...>cd /repo && restore
+#: diagnose /path</...>`) - that is why the first full run scored 0 on every
+#: recorded task. But matching the bare phrase anywhere executes the model's
+#: own prose: "I should NOT restore run sharpen_unsharp" ran sharpen_unsharp
+#: (found in the 2026-09-03 audit). So the command must be preceded by
+#: something that makes it a command and not a mention: start of line, a shell
+#: prompt or `&&`, a backtick, or the `>` that closes a markup tag.
+COMMAND = re.compile(r"(?:^|[`>$]\s*|&&\s*)restore\s+(diagnose|run)\s+([^\n<`&;|]*)", re.M)
 
 MAX_TURNS = int(os.environ.get("RECORD_MAX_TURNS", "6"))
 
