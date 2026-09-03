@@ -17,16 +17,20 @@ model:
 # restore-rsi specific (not read by reef; consumed by materialize.py).
 restore:
   manifest: ../tasks/data/manifest.json
-  # Composite degradations: identity (no-op) scores 0.0 on all three, so every
-  # point is the loop's doing. The ceiling is not guessed - tasks/oracle_chains.py
-  # walks every tool sequence exhaustively (2026-09-03, work/oracle_d4.json):
-  #                      identity  best<=3   best<=4  best<=4 chain
-  #   haze_low_light_00    0.000    0.3384    0.3588  gamma>dcp>gamma>gamma
-  #   haze_low_light_01    0.000    0.1593    0.1775  dcp>gamma>gamma>gamma
-  #   low_light_noise_00   0.000    0.0881    0.1499  median>bilateral>gamma>gamma
-  # (Depth 5 adds little: 0.3696 / - / 0.1672, so ~0.37 / ~0.18 / ~0.17 is the
-  # toolbox's real ceiling. Any episode score above it did not come from
-  # restoring - which is how the leaky run was caught. See README.)
+  # Composite degradations. The score is PSNR *gain over the degraded input*
+  # (toolbox/cli.py: reference_score), so identity is exactly 0.0 on every task
+  # and every point is the loop's doing. The ceiling is not guessed -
+  # tasks/oracle_chains.py walks every tool sequence exhaustively
+  # (2026-09-03, work/oracle_v1_d4.json):
+  #                      best<=4  best<=4 chain                        1-tool scores
+  #   haze_low_light_00   0.5994  gamma>dcp>gamma>gamma                3 of 6 non-zero
+  #   haze_low_light_01   0.3863  dcp>gamma>gamma>gamma                3 of 6
+  #   low_light_noise_00  0.6268  median>bilateral>gamma>gamma         4 of 6
+  # Under the old absolute scale these were 0.3588 / 0.1775 / 0.1499 with 0-1
+  # non-zero single tools, i.e. a first action almost never earned feedback.
+  # Note the ceiling is per *step budget* and keeps rising with chain length, so
+  # it bounds only a policy under the same budget - never quote it as "the
+  # toolbox's ceiling" (README).
   task_ids:
     - haze_low_light_00
     - haze_low_light_01

@@ -13,8 +13,13 @@ def _to_pil(a: np.ndarray) -> Image.Image:
     return Image.fromarray(a)
 
 
-def dehaze_dcp(img: np.ndarray, omega: float = 0.9, t_min: float = 0.15, win: int = 15) -> np.ndarray:
-    """暗通道先验去雾(He et al. 2009 的简化版:最小滤波求暗通道,估 A,估 t,恢复)。"""
+def dcp_estimate(img: np.ndarray, omega: float = 0.9, t_min: float = 0.15, win: int = 15) -> tuple[np.ndarray, np.ndarray]:
+    """暗通道先验的两个物理量:大气光 A (3,) 与透射率 t (H,W,1)。
+
+    `dehaze_dcp` 和 `diagnose` 都用它 —— 一份实现,两个消费方。诊断需要 t 是因为
+    "雾有多重"的正确定义是透射率有多低,而不是"图看起来有多亮":后者会被暗光污染
+    (2026-09-03 实测:雾读数与低光互相掩盖)。
+    """
     x = img.astype(np.float64) / 255.0
     dark = x.min(axis=2)
     dark_min = np.asarray(_to_pil((dark * 255).astype(np.uint8)).filter(ImageFilter.MinFilter(win))) / 255.0
@@ -23,7 +28,13 @@ def dehaze_dcp(img: np.ndarray, omega: float = 0.9, t_min: float = 0.15, win: in
     A = x.reshape(-1, 3)[idx].mean(axis=0)
     t = 1.0 - omega * (x / np.maximum(A, 1e-3)).min(axis=2)
     t = np.asarray(_to_pil((np.clip(t, 0, 1) * 255).astype(np.uint8)).filter(ImageFilter.BoxBlur(win // 2))) / 255.0
-    t = np.clip(t, t_min, 1.0)[..., None]
+    return A, np.clip(t, t_min, 1.0)[..., None]
+
+
+def dehaze_dcp(img: np.ndarray, omega: float = 0.9, t_min: float = 0.15, win: int = 15) -> np.ndarray:
+    """暗通道先验去雾(He et al. 2009 的简化版:最小滤波求暗通道,估 A,估 t,恢复)。"""
+    x = img.astype(np.float64) / 255.0
+    A, t = dcp_estimate(img, omega=omega, t_min=t_min, win=win)
     J = (x - A) / t + A
     return (np.clip(J, 0, 1) * 255 + 0.5).astype(np.uint8)
 

@@ -34,21 +34,23 @@ def _load(path: str | Path) -> np.ndarray:
     return np.asarray(Image.open(path).convert("RGB"))
 
 
-def _psnr(a: np.ndarray, b: np.ndarray) -> float:
-    """Same formula as `restore score`, copied deliberately: the ceiling has to
-    be measured with the metric the gate uses, not a re-derivation of it."""
-    mse = float(((a.astype(np.float64) - b.astype(np.float64)) ** 2).mean())
-    return 99.0 if mse == 0 else float(10 * np.log10(255.0**2 / mse))
+def _score(out: np.ndarray, ref: np.ndarray, psnr_in: float) -> float:
+    """判据**直接调 `restore score` 用的那两个函数**,不在这里重推。
 
+    天花板必须用闸门自己的度量来量,否则量的是自己的假设(判据自写是复现过的坑)。
+    """
+    from toolbox.cli import _psnr, reference_score
 
-def _score(out: np.ndarray, ref: np.ndarray) -> float:
-    return float(np.clip((_psnr(out, ref) - 15.0) / 20.0, 0, 1))
+    return reference_score(_psnr(out, ref), psnr_in)
 
 
 def search(image: np.ndarray, ref: np.ndarray, tools: dict, depth: int) -> tuple[list[str], float, int, dict]:
     """(best chain, best score, chains evaluated, score of every depth-1 tool)."""
+    from toolbox.cli import _psnr
+
+    psnr_in = _psnr(image, ref)      # every score is a gain over this
     best_chain: list[str] = []
-    best_score = _score(image, ref)  # the identity chain: doing nothing
+    best_score = _score(image, ref, psnr_in)  # the identity chain: exactly 0.0
     evaluated = 1
     singles: dict[str, float] = {}
 
@@ -62,7 +64,7 @@ def search(image: np.ndarray, ref: np.ndarray, tools: dict, depth: int) -> tuple
             except Exception as exc:  # noqa: BLE001 - a tool that throws is not a chain, and must not
                 print(f"  ! {'>'.join([*chain, name])} raised {exc!r}")  # be silently skipped as if it scored 0
                 continue
-            score = _score(result, ref)
+            score = _score(result, ref, psnr_in)
             evaluated += 1
             if not chain:
                 singles[name] = round(score, 4)
@@ -103,7 +105,7 @@ def main() -> None:
         t0 = time.monotonic()
         chain, score, evaluated, singles = search(_load(frame["input"]), _load(frame["reference"]), tools, args.depth)
         report["tasks"][tid] = {
-            "identity": round(_score(_load(frame["input"]), _load(frame["reference"])), 4),
+            "identity": 0.0,  # 改善量刻度下,什么都不做恒为 0
             "best_chain": chain,
             "best_score": round(score, 4),
             "chains_evaluated": evaluated,

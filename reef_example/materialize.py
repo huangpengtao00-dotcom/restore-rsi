@@ -10,7 +10,9 @@ the pass through inference and what pi gets as the episode prompt, so the two
 never drift.
 """
 
+import hashlib
 import json
+import shutil
 import sys
 from pathlib import Path
 
@@ -26,25 +28,38 @@ def tool_catalog() -> str:
     return "\n".join(f"  - {name} ({spec['task']}): {spec.get('note', '')}" for name, spec in registry.items())
 
 
-def task_prompt(task: dict, catalog: str) -> str:
+def opaque_id(task_id: str) -> str:
+    """The id the episode sees: `t<8 hex>` instead of `haze_low_light_00`.
+
+    The readable id leaked the answer. `[haze_low_light_00]` plus an input path
+    under `tasks/data/haze_low_light_00/` tells the agent which degradations are
+    present without diagnosing anything - and it used that: across 207 tool
+    calls it applied dehaze on the haze tasks and never on the one without,
+    while its own haze reading sat at 0.073 (2026-09-03 audit). Any claim about
+    how well the agent reads a diagnosis needs that channel closed.
+    """
+    return "t" + hashlib.sha256(task_id.encode()).hexdigest()[:8]
+
+
+def task_prompt(catalog: str, prompt_id: str, input_path: Path) -> str:
     """The episode prompt for one manifest task.
 
-    Starts with the stable `[task_id]` prefix (evaluate/report key on it),
+    Starts with the stable `[<opaque id>]` prefix (evaluate/report key on it),
     names the input, lists the two `restore` commands the episode may use, and
     pins the reply format: the final image's path, alone on the last line.
 
-    Blind by construction: no reference path, no `restore score`. The judge
-    (harness.evolution.evaluate) holds the reference and scores the episode's
-    final image afterwards, so the prompt has nothing to hill-climb on.
+    Blind by construction, in two ways: no reference path and no `restore score`
+    (the judge in harness.evolution holds both), and no readable task id or
+    input path (see `opaque_id`) - so neither the answer nor the *question* is
+    in the prompt.
 
     The last paragraph covers the recorded relay, where the model has no shell
     of its own: run.py executes each command it names and feeds the real stdout
     back as the next turn, so one-command-per-reply is the honest instruction in
     both environments.
     """
-    frame = task["frames"][0]
     return (
-        f"[{task['task_id']}] Restore the degraded image {frame['input']} as close to its clean original as you can. "
+        f"[{prompt_id}] Restore the degraded image {input_path} as close to its clean original as you can. "
         f"Work in the current directory (write intermediate/final PNGs here). Commands available in the shell:\n"
         f"  restore diagnose IN            -> JSON with degradation estimates (haze, low_light, noise, blur, 0..1)\n"
         f"  restore run TOOL IN OUT        -> apply one tool; chain tools by feeding OUT into the next IN\n"
@@ -71,18 +86,33 @@ def main() -> None:
     if missing:
         sys.exit(f"task ids not in manifest: {missing}")
     catalog = tool_catalog()
-    tasks = [task_prompt(by_id[task_id], catalog) for task_id in restore["task_ids"]]
+    work = HERE / "work"
+    inputs = work / "inputs"
+    inputs.mkdir(parents=True, exist_ok=True)
+
+    # The episode only ever sees work/inputs/<opaque>.png, so neither the id nor
+    # the path names the degradations. task_refs.json keys on the same opaque id
+    # (the judge reads it); task_map.json is the reverse map, for analysis only.
+    tasks, refs, mapping = [], {}, {}
+    for task_id in restore["task_ids"]:
+        frame = by_id[task_id]["frames"][0]
+        prompt_id = opaque_id(task_id)
+        episode_input = inputs / f"{prompt_id}.png"
+        shutil.copyfile(frame["input"], episode_input)
+        tasks.append(task_prompt(catalog, prompt_id, episode_input))
+        refs[prompt_id] = {"input": str(episode_input), "reference": frame["reference"]}
+        mapping[prompt_id] = task_id
 
     recipe = {key: config[key] for key in RECIPE_SECTIONS}
     recipe["evolution"] = {**recipe["evolution"], "tasks": tasks}
-    work = HERE / "work"
     (work / "recipes").mkdir(parents=True, exist_ok=True)
     (work / "recipes" / "harness_evolve.yaml").write_text(yaml.safe_dump(recipe, sort_keys=False, allow_unicode=True))
     (work / "tasks.json").write_text(json.dumps(tasks, indent=2, ensure_ascii=False) + "\n")
-    (work / "task_refs.json").write_text(
-        json.dumps({task_id: by_id[task_id]["frames"][0] for task_id in restore["task_ids"]}, indent=2) + "\n"
-    )
+    (work / "task_refs.json").write_text(json.dumps(refs, indent=2) + "\n")
+    (work / "task_map.json").write_text(json.dumps(mapping, indent=2) + "\n")
     print(f"materialized {len(tasks)} task(s) -> {work / 'recipes' / 'harness_evolve.yaml'}, {work / 'tasks.json'}")
+    for prompt_id, task_id in mapping.items():
+        print(f"  {prompt_id} = {task_id}")
 
 
 if __name__ == "__main__":
