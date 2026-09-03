@@ -116,3 +116,17 @@ See the "Run log" section below (filled from an actual run).
 2. **evolve 期间服务不响应 HTTP**。reef 同步跑 evaluate 的 pi episode,期间 `/reef/harness`、`/reef/status` 都会 socket 超时。`run.py` 的轮询原本只接 `ReefClientError`(404),裸 `TimeoutError` 直接把 run.py 崩掉;`run.sh` 的 `trap ... EXIT` 随即杀掉 reef,正在跑的 episode 一起死——表现为"记录成功、evolve 永远等不到"。现已把超时当"还在进化"处理。
 3. **重跑前清状态**。`agent_record_id` 按任务 id 生成,残留的 `work/agent-record` sqlite 会让第二次报告 409 冲突;`work/artifacts.git` 若在上次 SIGKILL 时没建完会是坏仓。重跑:`rm -rf work/agent-record work/artifact-* work/results work/artifacts.git && git init --bare work/artifacts.git`。
 4. 机器别睡:episode 几分钟,睡眠会连服务一起掐(`caffeinate -i`)。
+
+## 实测记录
+
+### 2026-09-03 · 1 任务,完整 evolve 循环首次跑通
+- 记录:`haze_low_light_00`,agent(DeepSeek-V4-Flash 经 pi)选链 `lowlight_gamma → dehaze_dcp → denoise_bilateral`,report score 0.0448(identity=0),低于 0.5 阈值 → 进 batch。
+- propose:模型对 `restore-strategy` skill 提了一次 `update`(文本当时未落盘,已加 `proposals.jsonl` 记录)。
+- evaluate:现版 vs 候选版各跑 3 个任务(6 个 pi episode,每个 4–7 分钟):
+  - current_scores = [0.425, 0.137, 0.296],合计 0.858
+  - candidate_scores = [0.290, 0.133, 0.000],合计 0.423
+- 门:`score_comparison`,候选 0 胜 3 负 → **reject,未发布**(`GET /reef/harness` → "serves no files")。机制按设计工作:一条让第三个任务归零的经验被拦住了。
+- 证据:`work/agent-record/*.commits.jsonl`、`work/results/trace.jsonl`(1653 条工具/打分事件)。
+
+### 发现:episode 里存在参考答案泄露
+任务 prompt 把参考图路径给了 agent,agent 在 episode 内反复调 `restore score --ref` 对着 GT 爬山(单 episode 几十次打分,分数 0 → 0.42)。这意味着 gate 分数衡量的是"agent 会不会用答案刷分",不是"会不会复原"。**下一版必须只给无参考诊断,参考图仅供 evaluate 使用**;本轮数据保留为"泄题对照"。

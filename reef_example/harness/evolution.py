@@ -115,7 +115,19 @@ def propose(nodes, samples, models):
 
     op = "update" if any(skill.get("name") == entry_id for skill in skills) else "create"
     log.info("propose: %s %s (%d chars)", op, entry_id, len(config["text"]))
+    # reef 只在 commits.jsonl 里留 op/id,被门拒掉的候选文本会丢;原样落盘以便事后审
+    _log_proposal({"op": op, "entry_id": entry_id, "reply": reply, "config": config})
     return Mutation(op, entry_id, {"name": "skill", "config": config})
+
+
+def _log_proposal(record: dict) -> None:
+    import json, os, time
+    from pathlib import Path
+
+    out = Path(os.environ.get("RESTORE_RESULTS_DIR", "work/results")) / "proposals.jsonl"
+    out.parent.mkdir(parents=True, exist_ok=True)
+    with out.open("a") as f:
+        f.write(json.dumps({"ts": time.time(), **record}, ensure_ascii=False) + "\n")
 
 
 # --------------------------------------------------------------------------- evaluate
