@@ -1,0 +1,34 @@
+{
+  "depth": 6,
+  "tools": [
+    "dehaze_dcp",
+    "denoise_bilateral",
+    "denoise_median",
+    "lowlight_clahe",
+    "lowlight_gamma",
+    "sharpen_unsharp"
+  ],
+  "tasks": {
+    "haze_low_light_00": {
+      "identity": 0.0,
+      "best_chain": [
+        "lowlight_gamma",
+        "dehaze_dcp",
+        "denoise_bilateral",
+        "lowlight_gamma",
+        "lowlight_gamma",
+        "lowlight_gamma"
+      ],
+      "best_score": 0.3799,
+      "chains_evaluated": 55987,
+      "single_tool_scores": {
+        "lowlight_gamma": 0.2393,
+        "dehaze_dcp": 0.0,
+        "lowlight_clahe": 0.0,
+        "denoise_bilateral": 0.0,
+        "denoise_median": 0.0,
+        "sharpen_unsharp": 0.0
+      }
+    }
+  }
+}
