@@ -130,10 +130,22 @@ def main() -> None:
     while manifest is None and time.monotonic() < deadline:
         try:
             manifest = client.get("/reef/harness", extra_headers={"x-reef-scenario": SCENARIO})
+        except (TimeoutError, OSError) as exc:  # noqa: PERF203
+            # reef runs evolve episodes synchronously and stops answering HTTP
+            # meanwhile; a socket timeout here means "still evolving", not failure.
+            # Letting it propagate killed run.py, whose EXIT trap in run.sh then
+            # killed reef mid-episode - the reason evolve never seemed to finish.
+            log(f"  service busy ({type(exc).__name__}); evolve step still running")
+            time.sleep(10.0)
+            continue
         except ReefClientError as exc:  # noqa: PERF203 - publish poll
             if exc.status != 404:  # 404 only means nothing has published yet
                 raise
-            status = client.get("/reef/status")
+            try:
+                status = client.get("/reef/status")
+            except (TimeoutError, OSError):
+                time.sleep(10.0)
+                continue
             if error := status.get("error"):
                 raise SystemExit(f"evolve step failed: {error}; check work/stack/reef.log") from exc
             brief = json.dumps({k: v for k, v in status.items() if k not in ("error",)}, sort_keys=True, default=str)

@@ -32,7 +32,18 @@ python3 materialize.py
 
 # 3. Start Reef, stop it again when this script exits. -c is absolute: reef
 #    resolves a relative config path against its own repo root.
-python3 -m reef serve -c "$PWD/serve.yaml" > work/reef.log 2>&1 &
+# reef's artifact client runs `git ls-remote <path>`; a relative path is
+# resolved by git against the *enclosing* worktree root (this dir sits inside
+# the restore-rsi repo), so every work/ path must be absolute. Resolve them
+# into a generated copy instead of hard-coding this machine's path in serve.yaml.
+python3 - "$PWD" <<'PY'
+import re, sys, pathlib
+here = pathlib.Path(sys.argv[1])
+src = (here / "serve.yaml").read_text()
+resolved = re.sub(r"^(\s*(?:agent_record_dir|artifact_repository|artifact_work_dir|artifact_cache_dir|run_dir):\s*)work/", lambda m: m.group(1) + str(here / "work") + "/", src, flags=re.M)
+(here / "work" / "serve.resolved.yaml").write_text(resolved)
+PY
+python3 -m reef serve -c "$PWD/work/serve.resolved.yaml" > work/reef.log 2>&1 &
 SERVE_PID=$!
 trap 'kill "$SERVE_PID" 2>/dev/null; wait "$SERVE_PID" 2>/dev/null' EXIT  # SIGTERM: reef stops its services
 
