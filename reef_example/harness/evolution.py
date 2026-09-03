@@ -134,41 +134,139 @@ def _log_proposal(record: dict) -> None:
 
 
 def evaluate(task: str, result) -> float:
-    """Score one episode: the REEF_SCORE the verifier printed, or 0.0.
+    """Score one episode: the judge scores the episode's final image itself.
 
-    Order of trust: the score inside a bash tool result (real `restore score`
-    stdout) > the score in the final assistant text. A shortcut (reference /
-    manifest / degradation code touched) zeroes the episode regardless.
+    Blind protocol (2026-09-03): the episode never sees the reference or any
+    score - it only gets `restore diagnose` and `restore run`. The reference
+    lives here, in the judge, so the gate measures restoration rather than the
+    agent's ability to hill-climb on ground truth (see README, reference leak).
+    A shortcut (own image tooling, or touching the reference/manifest/degradation
+    code) zeroes the episode regardless.
     """
     tid = task_id(task) or "?"
     shortcut = _shortcut_taken(result.trajectory)
-    tool_score = _score_from_tool_results(result.trajectory)
-    text_score = parse_score(_final_assistant_text(result.trajectory))
     if shortcut is not None:
         log.warning("evaluate[%s]: shortcut -> 0.0: %s", tid, shortcut)
-        score = 0.0
-    elif tool_score is not None:
-        score = tool_score
-    elif text_score is not None:
-        log.warning("evaluate[%s]: REEF_SCORE only in assistant text (no tool result) -> not trusted", tid)
-        score = 0.0
-    else:
-        score = 0.0
+        return 0.0
+    episode = _episode_id(result)
+    output_sha = _final_output_sha(episode) if episode else None
+    image = _cached_image(output_sha) if output_sha else None
+    if image is None:
+        log.warning("evaluate[%s]: no `restore run` output found (episode=%s sha=%s) -> 0.0", tid, episode, output_sha)
+        return 0.0
+    score = _score_output(tid, image)
     log.info(
-        "evaluate[%s]: score=%.4f tool=%s text=%s exit=%s residue=%d",
-        tid, score, tool_score, text_score, result.exit_code, len(result.residue),
+        "evaluate[%s]: score=%.4f sha=%s exit=%s residue=%d",
+        tid, score, output_sha, result.exit_code, len(result.residue),
     )
     return float(score)
 
 
 def parse_score(text: str | None) -> float | None:
-    """The last ``REEF_SCORE=<float>`` in ``text``, clipped to 0..1, or None."""
+    """The last ``REEF_SCORE=<float>`` in ``text``, clipped to 0..1, or None.
+
+    Used by the judge here and by run.py, which scores the recorded pass the
+    same way; the episode itself never runs `restore score`.
+    """
     if not text:
         return None
     found = SCORE_LINE.findall(text)
     if not found:
         return None
     return min(1.0, max(0.0, float(found[-1])))
+
+
+def _episode_id(result) -> str | None:
+    """The RESTORE_EPISODE_ID the wrapper derived, recovered from the episode
+    root name that shows up in the trajectory's tool output."""
+    import re as _re
+
+    for message in _messages(result.trajectory):
+        text = _text_parts(message.get("content"))
+        match = _re.search(r"reef-episode-([A-Za-z0-9_-]+)", text or "")
+        if match:
+            return match.group(1)
+    return None
+
+
+def _final_output_sha(episode_id: str) -> str | None:
+    """The output hash of the last successful `restore run` of this episode.
+
+    The toolbox's trace is the record of what actually ran (the episode root is
+    already deleted by the time evaluate is called), and every run's output is
+    kept in the content-addressed cache, so the hash is enough to score it.
+    """
+    import json as _json
+
+    trace = _results_dir() / "trace.jsonl"
+    last = None
+    try:
+        lines = trace.read_text().splitlines()
+    except OSError:
+        return None
+    for line in lines:
+        try:
+            event = _json.loads(line)
+        except ValueError:
+            continue
+        if event.get("episode") != episode_id or event.get("kind") != "run":
+            continue
+        if event.get("status") in {"ok", "cache_hit"} and event.get("output_sha"):
+            last = event["output_sha"]
+    return last
+
+
+def _results_dir():
+    import os
+    from pathlib import Path
+
+    return Path(os.environ.get("RESTORE_RESULTS_DIR", Path(__file__).resolve().parent.parent / "work" / "results"))
+
+
+def _cache_dir():
+    import os
+    from pathlib import Path
+
+    return Path(os.environ.get("RESTORE_CACHE_DIR", Path(__file__).resolve().parent.parent / "work" / "cache"))
+
+
+def _cached_image(output_sha: str):
+    """The cache file whose *content* hashes to output_sha (cache keys are
+    `<tool>-<input_sha>.png`, so the output hash needs a scan)."""
+    import hashlib
+
+    for path in _cache_dir().glob("*.png"):
+        if hashlib.sha256(path.read_bytes()).hexdigest()[:16] == output_sha:
+            return path
+    return None
+
+
+def _score_output(tid: str, image_path) -> float:
+    """Run `restore score` on the episode's final image against the reference.
+
+    Reference paths were written by materialize.py and are read *here*, in the
+    judge - nothing in the episode environment carries them.
+    """
+    import json as _json
+    import subprocess
+    from pathlib import Path
+
+    refs_file = Path(__file__).resolve().parent.parent / "work" / "task_refs.json"
+    try:
+        frame = _json.loads(refs_file.read_text())[tid]
+    except (OSError, KeyError, ValueError) as exc:
+        log.warning("evaluate[%s]: no reference in %s (%s) -> 0.0", tid, refs_file, exc)
+        return 0.0
+    proc = subprocess.run(
+        ["restore", "score", frame["input"], str(image_path), "--ref", frame["reference"]],
+        capture_output=True, text=True, timeout=120, check=False,
+        env={**__import__("os").environ, "RESTORE_EPISODE_ID": f"judge-{tid}"},
+    )
+    score = parse_score(proc.stdout)
+    if score is None:
+        log.warning("evaluate[%s]: judge scoring failed: %s", tid, (proc.stderr or proc.stdout)[:200])
+        return 0.0
+    return score
 
 
 def task_id(prompt: str | None) -> str | None:

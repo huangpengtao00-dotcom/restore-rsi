@@ -129,4 +129,23 @@ See the "Run log" section below (filled from an actual run).
 - 证据:`work/agent-record/*.commits.jsonl`、`work/results/trace.jsonl`(1653 条工具/打分事件)。
 
 ### 发现:episode 里存在参考答案泄露
-任务 prompt 把参考图路径给了 agent,agent 在 episode 内反复调 `restore score --ref` 对着 GT 爬山(单 episode 几十次打分,分数 0 → 0.42)。这意味着 gate 分数衡量的是"agent 会不会用答案刷分",不是"会不会复原"。**下一版必须只给无参考诊断,参考图仅供 evaluate 使用**;本轮数据保留为"泄题对照"。
+任务 prompt 把参考图路径给了 agent,agent 在 episode 内反复调 `restore score --ref` 对着 GT 爬山(单 episode 几十次打分,分数 0 → 0.42)。这意味着 gate 分数衡量的是"agent 会不会用答案刷分",不是"会不会复原"。已改为盲评(见下),泄题版数据保留为对照。
+
+### 2026-09-03 · 盲评协议 + 泄题对照
+改动:episode 只有 `restore diagnose` 与 `restore run`,prompt 不含参考路径也没有 score 命令;**参考图与打分移到 judge**——`evaluate` 从 trace 里取该 episode 最后一次成功 `restore run` 的 output_sha,在内容寻址缓存里找到那张图,自己跑 `restore score --ref`。
+
+同模型、同工具、同任务,只改"评估器对策略是否可见":
+
+| 三题分数 | 泄题版 | 盲评版 |
+|---|---|---|
+| 现版 | 0.425 / 0.137 / 0.296(合 0.858) | **0.237 / 0.050 / 0.107(合 0.394)** |
+| 候选 | 0.290 / 0.133 / 0.000(合 0.423) | 0.199 / 0.000 / 0.024(合 0.222) |
+| 门 | 0 胜 3 负 reject | 0 胜 3 负 reject |
+
+**约一半的分数是刷出来的**(现版 0.858 → 0.394)。两轮门都正确拒绝了候选。
+模型提议的 skill 文本(`work/results/proposals.jsonl`)读起来很合理——分严重度档、"噪声高时先降噪再提亮"、禁止自造分数——但盲评三题全线更低:合理的经验 ≠ 有用的经验,只有独立的门能分辨。
+
+证据:`work/gate_blind.json`、`work/results/proposals.jsonl`、`work/agent-record/*.commits.jsonl`。
+
+### 待修
+- 记录阶段(run.py)分数为 0:DeepSeek 回了自家的 tool-call 标记而非纯 `restore run` 行,`RUN_LINE` 解析不到。属格式解析问题,不影响 evolve;下一版放宽解析或改用 chat 模板。
