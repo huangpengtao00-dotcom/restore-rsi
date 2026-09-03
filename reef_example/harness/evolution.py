@@ -6,17 +6,24 @@ the served model reads the current skill nodes and the batched failing tasks
 restoration *strategy* (which tools, in what order, for which diagnosis), never
 a provider or a tool implementation.
 
-``evaluate`` differs from the tutorial's exact-match grader: an episode's score
-is the ``REEF_SCORE=<float>`` line that ``restore score`` printed. It is read
-from the *tool result* in the trajectory first (the verifier's own stdout) and
-only then from the agent's final text, so a fabricated number in the reply
-cannot beat a real one. Episodes that took a shortcut - touching the reference
-image, the task manifest or the degradation code instead of restoring through
-the ``restore`` tools - score 0.0 with the reason logged: the reference is
-visible to the agent (``--ref`` needs it) and a coding agent with a shell will
-find it, so the verifier has to watch for it (this showed up in the first
-manual pi smoke run, 2026-09-02: the agent read tasks/data/manifest.json to
-invert the exact degradation).
+``evaluate`` differs from the tutorial's exact-match grader in where the score
+comes from: nothing the episode says is trusted. The episode has ``restore
+diagnose`` and ``restore run`` only - no reference path, no score command - and
+the judge here recovers the hash of its last successful ``restore run`` output
+from the toolbox trace, pulls that image out of the content-addressed cache and
+scores it against the reference itself. So a number in the reply is not a score,
+and an episode cannot hill-climb on ground truth it never holds.
+
+That protocol is a correction, not a design choice made up front. The first
+version handed the episode the reference path and the ``restore score`` command
+and read the number it printed; the agent stopped restoring and started
+searching against the reference. Same model, same tools, same three tasks, the
+only change being the reference's visibility: 0.858 leaky vs 0.394 blind -
+roughly half the score was the leak (README, 实测记录). A shortcut - own image
+tooling, or naming the reference / manifest / degradation code - still zeroes
+the episode: a coding agent with a shell finds those files if they are reachable
+(the 2026-09-02 smoke run read tasks/data/manifest.json to invert the exact
+degradation), so the judge keeps watching for it.
 
 The model ``propose`` asks is ``models.served``, the binding reef hands it, so
 this module never names an endpoint or holds a credential. ``run.py`` imports
@@ -45,6 +52,7 @@ _ENTRY_NAME = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_-]*$")
 #: zeroes the episode.
 _SHORTCUT_PATTERNS = (
     re.compile(r"clean_\d+\.png"),  # the reference image, by name
+    re.compile(r"--ref\b"),  # scoring against the reference: blind episodes have no such command
     re.compile(r"manifest\.json"),  # ground-truth degradation parameters
     re.compile(r"restore_rsi/degrade|/degrade/|make_tasks\.py"),  # the degradation code
     # Hand-rolled image code instead of the toolbox (the smoke run inverted the
@@ -82,17 +90,19 @@ def propose(nodes, samples, models):
         )
     prompt = (
         "You are improving the skill file of an image-restoration agent. The agent restores a degraded "
-        "photo by chaining classical tools through a CLI (`restore diagnose`, `restore run TOOL IN OUT`, "
-        "`restore score IN OUT --ref REF`); the score is PSNR against the clean reference normalised to "
-        "0..1 (0.0 = 15 dB or worse, 1.0 = 35 dB). The tasks below scored at or below 0.5 (failed).\n\n"
+        "photo by chaining classical tools through a CLI - `restore diagnose IN` and `restore run TOOL IN OUT`, "
+        "and nothing else. It never sees the clean original and never computes a score: afterwards a judge "
+        "compares its final image with the original at PSNR, normalised to 0..1 (0.0 = 15 dB or worse, "
+        "1.0 = 35 dB). The tasks below scored at or below 0.5 (failed).\n\n"
         f"Failed tasks (prompt, score):\n{json.dumps(failures, indent=2, ensure_ascii=False, default=str)}\n\n"
         f"Current skills:\n{json.dumps(skills, indent=2, ensure_ascii=False)}\n\n"
         "Write ONE improved or new skill (SKILL.md markdown) that gives the agent a concrete restoration "
         "strategy: how to read the diagnosis numbers, which tool sequence to use for combined haze+low-light "
         "and low-light+noise, when to apply a tool twice, what to avoid (e.g. dehazing a dark image first "
-        "makes it darker; sharpening amplifies noise), and to ALWAYS end with `restore score` and the "
-        "REEF_SCORE line. Rules the skill must state: only the `restore` commands touch images; never open "
-        "the reference image, manifest or degradation code - that scores 0.\n"
+        "makes it darker; sharpening amplifies noise), and how to decide it is done from the diagnosis alone. "
+        "Rules the skill must state: only the `restore` commands touch images; the last `restore run` output "
+        "is what gets judged, so finish by naming its path; never look for the clean original, the task "
+        "manifest or the degradation code, and never write a score of your own - both score 0.\n"
         "Respond with exactly one JSON object and nothing else:\n"
         '{"id": "<skill name>", "name": "skill", "config": {"name": "<same skill name>", '
         '"text": "<the full SKILL.md markdown>"}}\n'
@@ -311,28 +321,6 @@ def _text_parts(content) -> str:
     return ""
 
 
-def _final_assistant_text(trajectory) -> str | None:
-    for message in reversed(list(_messages(trajectory))):
-        if message.get("role") == "assistant":
-            text = _text_parts(message.get("content"))
-            if text.strip():
-                return text
-    return None
-
-
-def _score_from_tool_results(trajectory) -> float | None:
-    """The last REEF_SCORE printed by a tool (pi records tool output as
-    ``role: toolResult`` messages)."""
-    last = None
-    for message in _messages(trajectory):
-        if message.get("role") != "toolResult":
-            continue
-        score = parse_score(_text_parts(message.get("content")))
-        if score is not None:
-            last = score
-    return last
-
-
 def _shortcut_taken(trajectory) -> str | None:
     """The first tool call that bypassed the toolbox, or None."""
     for message in _messages(trajectory):
@@ -343,9 +331,11 @@ def _shortcut_taken(trajectory) -> str | None:
                 continue
             args = part.get("arguments") or {}
             command = " ".join(str(value) for value in args.values()) if isinstance(args, dict) else str(args)
-            # `restore score IN OUT --ref .../clean_000.png` is the sanctioned use of the reference.
-            sanitized = re.sub(r"restore\s+score\s+\S+\s+\S+\s+--ref\s+\S+", "restore score", command)
+            # No exemption: under the blind protocol nothing in an episode has a
+            # legitimate reason to name the reference or score against it. (The
+            # judge's own `restore score --ref` runs in a separate subprocess and
+            # never appears in an episode trajectory.)
             for pattern in _SHORTCUT_PATTERNS:
-                if pattern.search(sanitized):
+                if pattern.search(command):
                     return f"{part.get('name')}: {command[:200]}"
     return None

@@ -25,6 +25,13 @@ unset HTTP_PROXY HTTPS_PROXY ALL_PROXY http_proxy https_proxy all_proxy
 export NO_PROXY="aigw.meshy.team,127.0.0.1,localhost" no_proxy="$NO_PROXY"
 export RESTORE_RESULTS_DIR="$PWD/work/results" RESTORE_CACHE_DIR="$PWD/work/cache" RESTORE_TRACE="$PWD/work/results/trace.jsonl"
 
+#    The trace is the only record of what actually ran, and a reset between
+#    runs already cost one (the leaky run's 1653 events, gone before they could
+#    be checked against the ceiling). Keep each run's under its own name.
+if [ -s work/results/trace.jsonl ]; then
+    mv work/results/trace.jsonl "work/results/trace.$(date +%Y%m%d-%H%M%S).jsonl"
+fi
+
 # 2. Copy serve.yaml's recipe sections where the recipe registry reads them,
 #    with the task prompts generated from tasks/data/manifest.json.
 export REEF_RECIPE_CONFIG_DIR="$PWD/work/recipes"

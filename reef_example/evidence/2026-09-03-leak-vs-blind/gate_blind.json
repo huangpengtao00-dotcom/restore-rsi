@@ -1,0 +1,23 @@
+{
+  "protocol": "blind (judge holds the reference; episode gets diagnose+run only)",
+  "outcome": "reject",
+  "reason": "candidate did not exceed its 3 losses with 0 wins",
+  "current_scores": [
+    0.2374,
+    0.0501,
+    0.1069
+  ],
+  "candidate_scores": [
+    0.1985,
+    0.0,
+    0.0239
+  ],
+  "current_score": 0.3944,
+  "candidate_score": 0.22240000000000001,
+  "wins_losses_ties": [
+    0,
+    3,
+    0
+  ],
+  "episode_failures": 0
+}

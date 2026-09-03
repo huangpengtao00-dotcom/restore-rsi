@@ -2,13 +2,15 @@
 
 One pass:
 
-    record - each task prompt goes once through reef inference (a plain chat
-             completion: no shell, so the model answers with the `restore run`
-             commands it would issue); reef serves the reply and records the
-             exchange against a receipt
-    report - run.py executes that plan for real through bin/restore, scores the
-             output with `restore score --ref` and reports the REEF_SCORE
-             against the receipt; every report at or below data.max_score (0.5)
+    record - each task prompt runs as a short relay: reef inference serves the
+             reply, run.py executes the `restore` commands it names through
+             bin/restore and feeds their real stdout back as the next turn, up
+             to MAX_TURNS or until the reply names no command. Every turn is
+             recorded against its own receipt
+    report - run.py scores the relay's final image with `restore score --ref`
+             (the reference stays on this side, never in the transcript) and
+             reports the REEF_SCORE against the turn receipts; every report at
+             or below data.max_score (0.5)
              batches and triggers one gated evolve step: propose() asks the
              served model for a skill mutation over the failures, real pi
              episodes score current vs candidate on all tasks, a win publishes
@@ -44,40 +46,117 @@ PULL_TIMEOUT_S = float(os.environ.get("PULL_TIMEOUT_S", "3600"))
 
 TASKS_FILE = HERE / "work" / "tasks.json"
 REFS_FILE = HERE / "work" / "task_refs.json"
+REGISTRY_FILE = HERE.parent / "toolbox" / "registry.yaml"
 RESTORE = HERE / "bin" / "restore"
-RUN_LINE = re.compile(r"restore\s+run\s+([A-Za-z0-9_]+)\s+(\S+)\s+(\S+)")
+
+#: A `restore diagnose|run` command *anywhere* in the reply. The served model
+#: does not answer in plain lines: DeepSeek-V4-Flash wraps every command in its
+#: own tool-call markup (`<||DSML||parameter name="command" ...>cd /repo &&
+#: restore diagnose /path</...>`), and other models use markdown fences. Reading
+#: through the wrapper - stop at the first newline, `<`, backtick or shell
+#: separator - is what makes the relay model-agnostic. (The first full run
+#: scored 0 on every recorded task because a line-anchored pattern matched
+#: none of that markup; see README, 实测记录.)
+COMMAND = re.compile(r"restore\s+(diagnose|run)\s+([^\n<`&;|]*)")
+
+MAX_TURNS = int(os.environ.get("RECORD_MAX_TURNS", "6"))
+
+FOLLOW_UP = (
+    "Continue: issue the next `restore run TOOL IN OUT` command, or finish by replying with the path of "
+    "your final image alone on the last line and no further commands."
+)
+
+#: A reply with no `restore` command usually means the model wandered off (the
+#: first 3-task run lost a whole task to a reply of `pwd`), not that it is done.
+#: One nudge is sent before the relay accepts the reply as final; two such
+#: replies in a row end it.
+NUDGE = (
+    "That reply contained no `restore` command. Only `restore diagnose IN` and `restore run TOOL IN OUT` are "
+    "available - no shell of your own. Reply with exactly one such command, or, if the restoration is finished, "
+    "with the path of your final image alone on the last line."
+)
 
 
-def execute_plan(tid: str, reply: str, frame: dict) -> tuple[float, str]:
-    """Run the `restore run` chain the reply names, score the final output.
+def _tool_names() -> set[str]:
+    """Tool names `restore run` accepts, so an echoed `restore run TOOL IN OUT`
+    from the prompt's own catalog is reported back as unknown instead of being
+    executed as a tool literally named TOOL."""
+    import yaml
 
-    Returns (score, feedback). The chain runs in a scratch directory with
-    RESTORE_EPISODE_ID=record-<task>, so its verdict/output/trace land in
-    work/results beside the episodes'. No commands -> 0.0 ("no plan").
+    return set(yaml.safe_load(REGISTRY_FILE.read_text())["tools"])
+
+
+def _restore(args: list[str], cwd: Path, env: dict) -> subprocess.CompletedProcess:
+    return subprocess.run([str(RESTORE), *args], cwd=cwd, env=env, capture_output=True, text=True)
+
+
+def _clip(proc: subprocess.CompletedProcess, limit: int = 400) -> str:
+    return (proc.stdout or proc.stderr or "").strip()[:limit] or "(no output)"
+
+
+def record_episode(tid: str, prompt: str, frame: dict, client: ReefClient, log) -> tuple[float, str, list[str]]:
+    """Relay one task: served reply -> real `restore` commands -> stdout back.
+
+    Returns (score, feedback, receipts). The relay runs in a scratch directory
+    with RESTORE_EPISODE_ID=record-<task>, so its outputs and trace events land
+    in work/results beside the episodes'. Whatever paths the model names are
+    ignored: the chain starts at the task input and each successful step's
+    output becomes the next step's input, which is also what keeps the reply
+    from being able to point `restore` at a file of its choosing. Scoring
+    happens after the relay closes, on this side, with the reference the
+    transcript never carried; no tool ran -> 0.0.
     """
-    steps = RUN_LINE.findall(reply)
-    if not steps:
-        return 0.0, "no plan"
+    tools = _tool_names()
+    messages = [{"role": "user", "content": prompt}]
+    receipts: list[str] = []
+    chain: list[str] = []
     env = {**os.environ, "RESTORE_EPISODE_ID": f"record-{tid}-{int(time.time())}"}
+    nudged = False
     with tempfile.TemporaryDirectory(prefix=f"restore-record-{tid}-") as scratch:
         cwd = Path(scratch)
-        # Whatever names the model used, the chain starts at the task input and
-        # each step's output feeds the next.
         current = Path(frame["input"])
-        for index, (tool, _in, _out) in enumerate(steps, start=1):
-            out = cwd / f"step{index}_{tool}.png"
-            run = subprocess.run([str(RESTORE), "run", tool, str(current), str(out)], cwd=cwd, env=env, capture_output=True, text=True)
-            if run.returncode != 0:
-                return 0.0, f"step {index} {tool} failed: {(run.stderr or run.stdout).strip()[:200]}"
-            current = out
-        score_run = subprocess.run(
-            [str(RESTORE), "score", frame["input"], str(current), "--ref", frame["reference"]],
-            cwd=cwd, env=env, capture_output=True, text=True,
-        )
+        for turn in range(1, MAX_TURNS + 1):
+            body, receipt = client.inference_with_record(
+                SCENARIO, "/v1/chat/completions", {"model": MODEL, "messages": messages}
+            )
+            reply = body["choices"][0]["message"]["content"] or ""
+            receipts.append(receipt)
+            messages.append({"role": "assistant", "content": reply})
+            commands = COMMAND.findall(reply)
+            log(f"  turn {turn}: {len(commands)} command(s) {[verb for verb, _ in commands]} reply {reply.strip()[:160]!r}")
+            if not commands:
+                if nudged:
+                    break
+                nudged = True
+                messages.append({"role": "user", "content": NUDGE})
+                continue
+            nudged = False
+            observations = []
+            for verb, rest in commands:
+                if verb == "diagnose":
+                    proc = _restore(["diagnose", str(current)], cwd, env)
+                    observations.append(f"$ restore diagnose {current.name}\n{_clip(proc)}")
+                    continue
+                tool = (rest.split() or [""])[0]
+                if tool not in tools:
+                    observations.append(f"$ restore run {tool}\nunknown tool {tool!r}; available: {', '.join(sorted(tools))}")
+                    continue
+                out = cwd / f"step{len(chain) + 1}_{tool}.png"
+                proc = _restore(["run", tool, str(current), str(out)], cwd, env)
+                if proc.returncode != 0:
+                    observations.append(f"$ restore run {tool}\nFAILED: {_clip(proc, 200)}")
+                    continue
+                current = out
+                chain.append(tool)
+                observations.append(f"$ restore run {tool} {out.name}\n{_clip(proc, 200)}")
+            messages.append({"role": "user", "content": "\n\n".join(observations) + "\n\n" + FOLLOW_UP})
+        if not chain:
+            return 0.0, f"no tool ran in {len(receipts)} turn(s)", receipts
+        score_run = _restore(["score", frame["input"], str(current), "--ref", frame["reference"]], cwd, env)
     score = parse_score(score_run.stdout)
     if score is None:
-        return 0.0, f"score failed: {(score_run.stderr or score_run.stdout).strip()[:200]}"
-    return score, "chain=" + ">".join(tool for tool, _, _ in steps)
+        return 0.0, f"score failed: {_clip(score_run, 200)}", receipts
+    return score, f"turns={len(receipts)} chain=" + ">".join(chain), receipts
 
 
 def main() -> None:
@@ -101,22 +180,23 @@ def main() -> None:
     for index, task in enumerate(tasks, start=1):
         tid = task_id(task) or f"task{index}"
         t0 = time.monotonic()
-        body, receipt = client.inference_with_record(
-            SCENARIO,
-            "/v1/chat/completions",
-            {"model": MODEL, "messages": [{"role": "user", "content": task}]},
-        )
-        reply = body["choices"][0]["message"]["content"] or ""
-        score, feedback = execute_plan(tid, reply, refs[tid])
+        log(f"task {index} {tid}: relaying (up to {MAX_TURNS} turns)")
+        score, feedback, receipts = record_episode(tid, task, refs[tid], client, log)
+        # Exactly one reference, and it must be the first turn's: CordisProcessor
+        # drops any report claiming more than a single request (processor.py:48,
+        # `len(context.references) != 1 -> NEVER`) *silently* - a whole 3-task run
+        # ended with batch_ready false and no error anywhere. And propose() reads
+        # the task prompt off `messages[-1]` of the referenced payload, which is
+        # the clean `[task_id] ...` prompt only on turn 1; a later turn's payload
+        # ends with a tool observation, so it would batch under task id "?".
         client.report(
             SCENARIO,
             {"agent_record_id": f"restore-evolve-{tid}", "score": score, "feedback": f"{tid} {feedback}"},
-            references=[receipt],
+            references=receipts[:1],
         )
         if score <= 0.5:
             failures += 1
-        log(f"task {index} {tid}: score {score:.4f} ({feedback}) receipt {receipt} {time.monotonic() - t0:.0f}s")
-        log(f"  reply: {reply.strip()[:400]!r}")
+        log(f"task {index} {tid}: score {score:.4f} ({feedback}) receipts {receipts} {time.monotonic() - t0:.0f}s")
 
     if failures == 0:
         log("every task passed: nothing batched, no evolve step runs")

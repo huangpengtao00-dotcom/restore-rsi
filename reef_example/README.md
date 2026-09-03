@@ -147,5 +147,49 @@ See the "Run log" section below (filled from an actual run).
 
 证据:`work/gate_blind.json`、`work/results/proposals.jsonl`、`work/agent-record/*.commits.jsonl`。
 
-### 待修
-- 记录阶段(run.py)分数为 0:DeepSeek 回了自家的 tool-call 标记而非纯 `restore run` 行,`RUN_LINE` 解析不到。属格式解析问题,不影响 evolve;下一版放宽解析或改用 chat 模板。
+### 2026-09-03 · 天花板(穷举 oracle):泄题版的分数根本达不到
+分数只有对着上界才读得懂。工具是确定性的、只有 6 个,所以最优链可以直接穷举——`tasks/oracle_chains.py` 深度优先走遍所有长度 ≤ N 的序列,用**和闸门同一个打分公式**(原样抄自 `cli.py`,不自己重推)算每个前缀。
+
+| 任务 | identity | ≤3 | ≤4 | ≤5 | 盲评现版 | 泄题现版 |
+|---|---|---|---|---|---|---|
+| haze_low_light_00 | 0.000 | 0.3384 | 0.3588 | **0.3696** | 0.2374 | **0.425** |
+| haze_low_light_01 | 0.000 | 0.1593 | **0.1775** | — | 0.0501 | 0.137 |
+| low_light_noise_00 | 0.000 | 0.0881 | 0.1499 | **0.1672** | 0.1069 | **0.296** |
+
+深度 4→5 只涨 0.01–0.02,说明 ~0.37 / ~0.18 / ~0.17 就是这套工具的实际上界。
+
+于是:**泄题版的 0.425 和 0.296 高于穷举天花板**——那个数字不可能是"复原"出来的。盲评版三题分别是天花板的 64% / 28% / 64%,在合理区间内。
+
+机制侧的直接验证(`restore score IN OUT --ref REF` 打的是你交给它的 OUT):
+
+```
+honest: 交自己的输入   -> REEF_SCORE=0.0000
+gamed:  交参考图本身   -> REEF_SCORE=1.0000
+```
+
+接口本身可被平凡地刷满。agent 当时只刷到 0.425 而不是 1.0,具体走的哪条路**无法复盘了**——那一轮的 trace(1653 条)在重置时被删掉了,这是我的流程错误。已改:`run.sh` 每轮开跑前把上一轮 trace 轮转成 `trace.<时间戳>.jsonl`,关键证据固化进受版本管理的 `evidence/`。
+
+### 坑 5:report 引用超过一个 record → 整批被静默丢弃
+中继版第一次跑,三个任务全部低于 0.5 却一个 evolve 都没触发,`/reef/status` 里 `batch_ready: false`、`scenario_step: 0`,日志里**没有任何错误**。
+
+根因在 reef 侧:`reef/train/cordis_backend/processor.py:48`
+
+```python
+if len(context.references) != 1 or not self._min_score <= score <= self._max_score:
+    return NEVER
+```
+
+多轮中继每轮各有一个 receipt,我把 6 个全传了进去 → `!= 1` → 直接判 NEVER,记录释放,静默。
+
+改法:`references=receipts[:1]`,而且**必须是第 1 轮的**——`propose` 从被引用 payload 的 `messages[-1]` 取任务 prompt,只有第 1 轮的 payload 最后一条是干净的 `[task_id] ...`;换成后面任何一轮,取到的是工具观测文本,task id 会退化成 `?`。
+
+### 2026-09-03 · 记录段改为多轮中继(已修)
+前一轮记录段三题全 0,原因不是策略差:DeepSeek-V4-Flash 把命令包在自家 tool-call 标记里(`<||DSML||parameter name="command" ...>cd ... && restore diagnose ...`),行锚定的 `RUN_LINE` 一条都匹配不到,于是判成"no plan"。
+
+改法两处:
+- `COMMAND` 正则读穿包装(纯文本行 / markdown 围栏 / 模型自有标记都命中),遇换行、`<`、反引号或 shell 分隔符停;
+- 记录段从"一次性猜整条链"改成**真中继**:模型说要执行什么命令,run.py 真跑,把真实 stdout 喂回去当下一轮,最多 `RECORD_MAX_TURNS`(默认 6)轮。模型给的路径一律忽略,链条从任务输入起、每步输出接下一步——顺带堵掉"让 `restore` 指向自选文件"。
+
+注册表里没有的工具名(比如模型照抄 prompt 里的 `restore run TOOL IN OUT`)回一句 unknown tool 而不是真去执行。
+
+副作用一并处理:`propose` 的提示词原来教技能"结尾必须跑 `restore score`",与盲评协议矛盾(第一轮拒掉的那条 skill 里就带着这句),已改;`_shortcut_taken` 取消了 `restore score --ref` 的豁免——盲评下 episode 没有任何理由碰参考图。

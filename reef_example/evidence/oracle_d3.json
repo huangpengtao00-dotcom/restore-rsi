@@ -1,0 +1,229 @@
+{
+  "depth": 3,
+  "tools": [
+    "dehaze_dcp",
+    "denoise_bilateral",
+    "denoise_median",
+    "lowlight_clahe",
+    "lowlight_gamma",
+    "sharpen_unsharp"
+  ],
+  "tasks": {
+    "haze_00": {
+      "identity": 0.0827,
+      "best_chain": [
+        "sharpen_unsharp",
+        "lowlight_clahe",
+        "denoise_median"
+      ],
+      "best_score": 0.0988,
+      "chains_evaluated": 259,
+      "single_tool_scores": {
+        "sharpen_unsharp": 0.0839,
+        "lowlight_gamma": 0.0827,
+        "denoise_bilateral": 0.0826,
+        "denoise_median": 0.0826,
+        "lowlight_clahe": 0.0741,
+        "dehaze_dcp": 0.0357
+      }
+    },
+    "haze_01": {
+      "identity": 0.0,
+      "best_chain": [
+        "denoise_bilateral",
+        "dehaze_dcp",
+        "denoise_bilateral"
+      ],
+      "best_score": 0.1832,
+      "chains_evaluated": 259,
+      "single_tool_scores": {
+        "dehaze_dcp": 0.1816,
+        "lowlight_gamma": 0.0,
+        "lowlight_clahe": 0.0,
+        "denoise_bilateral": 0.0,
+        "denoise_median": 0.0,
+        "sharpen_unsharp": 0.0
+      }
+    },
+    "low_light_00": {
+      "identity": 0.0,
+      "best_chain": [
+        "lowlight_gamma",
+        "lowlight_gamma",
+        "lowlight_gamma"
+      ],
+      "best_score": 0.7602,
+      "chains_evaluated": 259,
+      "single_tool_scores": {
+        "lowlight_gamma": 0.4189,
+        "dehaze_dcp": 0.0,
+        "lowlight_clahe": 0.0,
+        "denoise_bilateral": 0.0,
+        "denoise_median": 0.0,
+        "sharpen_unsharp": 0.0
+      }
+    },
+    "low_light_01": {
+      "identity": 0.0,
+      "best_chain": [
+        "lowlight_gamma",
+        "lowlight_gamma",
+        "lowlight_clahe"
+      ],
+      "best_score": 0.4003,
+      "chains_evaluated": 259,
+      "single_tool_scores": {
+        "lowlight_gamma": 0.149,
+        "dehaze_dcp": 0.0,
+        "lowlight_clahe": 0.0,
+        "denoise_bilateral": 0.0,
+        "denoise_median": 0.0,
+        "sharpen_unsharp": 0.0
+      }
+    },
+    "noise_00": {
+      "identity": 0.3117,
+      "best_chain": [
+        "denoise_median",
+        "denoise_bilateral",
+        "denoise_bilateral"
+      ],
+      "best_score": 1.0,
+      "chains_evaluated": 259,
+      "single_tool_scores": {
+        "denoise_median": 0.6756,
+        "denoise_bilateral": 0.4975,
+        "lowlight_gamma": 0.3117,
+        "dehaze_dcp": 0.0,
+        "lowlight_clahe": 0.0,
+        "sharpen_unsharp": 0.0
+      }
+    },
+    "noise_01": {
+      "identity": 0.3965,
+      "best_chain": [
+        "lowlight_gamma",
+        "denoise_bilateral",
+        "denoise_bilateral"
+      ],
+      "best_score": 1.0,
+      "chains_evaluated": 259,
+      "single_tool_scores": {
+        "denoise_median": 0.7622,
+        "denoise_bilateral": 0.6681,
+        "lowlight_gamma": 0.3965,
+        "sharpen_unsharp": 0.0159,
+        "dehaze_dcp": 0.0,
+        "lowlight_clahe": 0.0
+      }
+    },
+    "haze_low_light_00": {
+      "identity": 0.0,
+      "best_chain": [
+        "dehaze_dcp",
+        "lowlight_gamma",
+        "lowlight_gamma"
+      ],
+      "best_score": 0.3384,
+      "chains_evaluated": 259,
+      "single_tool_scores": {
+        "lowlight_gamma": 0.2393,
+        "dehaze_dcp": 0.0,
+        "lowlight_clahe": 0.0,
+        "denoise_bilateral": 0.0,
+        "denoise_median": 0.0,
+        "sharpen_unsharp": 0.0
+      }
+    },
+    "haze_low_light_01": {
+      "identity": 0.0,
+      "best_chain": [
+        "dehaze_dcp",
+        "lowlight_gamma",
+        "lowlight_gamma"
+      ],
+      "best_score": 0.1593,
+      "chains_evaluated": 259,
+      "single_tool_scores": {
+        "lowlight_gamma": 0.0773,
+        "dehaze_dcp": 0.0,
+        "lowlight_clahe": 0.0,
+        "denoise_bilateral": 0.0,
+        "denoise_median": 0.0,
+        "sharpen_unsharp": 0.0
+      }
+    },
+    "low_light_noise_00": {
+      "identity": 0.0,
+      "best_chain": [
+        "lowlight_gamma",
+        "lowlight_gamma",
+        "denoise_median"
+      ],
+      "best_score": 0.0881,
+      "chains_evaluated": 259,
+      "single_tool_scores": {
+        "dehaze_dcp": 0.0,
+        "lowlight_gamma": 0.0,
+        "lowlight_clahe": 0.0,
+        "denoise_bilateral": 0.0,
+        "denoise_median": 0.0,
+        "sharpen_unsharp": 0.0
+      }
+    },
+    "low_light_noise_01": {
+      "identity": 0.0,
+      "best_chain": [
+        "denoise_bilateral",
+        "lowlight_gamma",
+        "lowlight_gamma"
+      ],
+      "best_score": 0.1479,
+      "chains_evaluated": 259,
+      "single_tool_scores": {
+        "dehaze_dcp": 0.0,
+        "lowlight_gamma": 0.0,
+        "lowlight_clahe": 0.0,
+        "denoise_bilateral": 0.0,
+        "denoise_median": 0.0,
+        "sharpen_unsharp": 0.0
+      }
+    },
+    "haze_noise_00": {
+      "identity": 0.0371,
+      "best_chain": [
+        "dehaze_dcp",
+        "denoise_median",
+        "denoise_median"
+      ],
+      "best_score": 0.1885,
+      "chains_evaluated": 259,
+      "single_tool_scores": {
+        "denoise_median": 0.0678,
+        "denoise_bilateral": 0.0663,
+        "lowlight_gamma": 0.0371,
+        "dehaze_dcp": 0.0,
+        "lowlight_clahe": 0.0,
+        "sharpen_unsharp": 0.0
+      }
+    },
+    "haze_noise_01": {
+      "identity": 0.0,
+      "best_chain": [
+        "dehaze_dcp",
+        "denoise_median",
+        "denoise_median"
+      ],
+      "best_score": 0.1957,
+      "chains_evaluated": 259,
+      "single_tool_scores": {
+        "dehaze_dcp": 0.0,
+        "lowlight_gamma": 0.0,
+        "lowlight_clahe": 0.0,
+        "denoise_bilateral": 0.0,
+        "denoise_median": 0.0,
+        "sharpen_unsharp": 0.0
+      }
+    }
+  }
+}

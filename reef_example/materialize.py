@@ -30,11 +30,17 @@ def task_prompt(task: dict, catalog: str) -> str:
     """The episode prompt for one manifest task.
 
     Starts with the stable `[task_id]` prefix (evaluate/report key on it),
-    names the input and the reference, lists the `restore` commands, and pins
-    the reply format: the `REEF_SCORE=` line `restore score` printed, alone on
-    the last line. The last paragraph is for the recorded pass, where the same
-    prompt is answered without a shell: run.py executes the listed commands
-    itself and scores the real output.
+    names the input, lists the two `restore` commands the episode may use, and
+    pins the reply format: the final image's path, alone on the last line.
+
+    Blind by construction: no reference path, no `restore score`. The judge
+    (harness.evolution.evaluate) holds the reference and scores the episode's
+    final image afterwards, so the prompt has nothing to hill-climb on.
+
+    The last paragraph covers the recorded relay, where the model has no shell
+    of its own: run.py executes each command it names and feeds the real stdout
+    back as the next turn, so one-command-per-reply is the honest instruction in
+    both environments.
     """
     frame = task["frames"][0]
     return (
@@ -49,8 +55,8 @@ def task_prompt(task: dict, catalog: str) -> str:
         f"line.\n"
         f"Rules (violations score 0): only `restore run` may create or modify images - no python/PIL/numpy/imagemagick "
         f"of your own; never open, copy or inspect the task manifest or the degradation code.\n"
-        f"If you cannot execute commands, reply instead with the exact `restore run ...` commands you would run, "
-        f"in order, one per line (use in.png for the input, chain via out1.png, out2.png, ...), and nothing else."
+        f"If you have no shell of your own, just name the command you want to run: it is executed for you and "
+        f"its real output comes back, so work one command per reply and read the result before deciding the next."
     )
 
 
