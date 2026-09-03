@@ -12,6 +12,7 @@ never drift.
 
 import hashlib
 import json
+import os
 import shutil
 import sys
 from pathlib import Path
@@ -105,6 +106,13 @@ def main() -> None:
 
     recipe = {key: config[key] for key in RECIPE_SECTIONS}
     recipe["evolution"] = {**recipe["evolution"], "tasks": tasks}
+    # Measurement override. The noise floor needs one evolve step per run
+    # regardless of how the recorded task scored, and `data.max_score` (0.5)
+    # normally suppresses the step when the task did *not* fail - which silently
+    # produced no sample when a relay happened to score 0.5021.
+    if (override := os.environ.get("RESTORE_MAX_SCORE")) is not None:
+        recipe["data"] = {**recipe["data"], "max_score": float(override)}
+        print(f"  data.max_score overridden to {override} (RESTORE_MAX_SCORE)")
     (work / "recipes").mkdir(parents=True, exist_ok=True)
     (work / "recipes" / "harness_evolve.yaml").write_text(yaml.safe_dump(recipe, sort_keys=False, allow_unicode=True))
     (work / "tasks.json").write_text(json.dumps(tasks, indent=2, ensure_ascii=False) + "\n")

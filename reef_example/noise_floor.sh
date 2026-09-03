@@ -15,7 +15,7 @@ set -e
 cd "$(dirname "$0")"
 N="${1:-4}"
 OUT="$PWD/work/noise_floor.jsonl"
-: > "$OUT"
+[ "${KEEP:-}" = "1" ] || : > "$OUT"
 
 # 一次失败不能静默变成"少一个样本":重掷失败就重试,连续失败到上限才记为缺失。
 # (第一版没有重试,一次上游瞬时 503 就丢了一个样本,而且只在汇总时才发现。)
@@ -25,7 +25,7 @@ for i in $(seq 1 "$N"); do
         echo "=== 重掷 $i/$N (第 $attempt 次尝试) ==="
         rm -rf work/agent-record work/artifacts.git work/artifact-work work/artifact-cache work/stack
         # 缓存留着:工具确定性,缓存命中不改分数,只省时间。
-        PULL_TIMEOUT_S=2400 ./run.sh --limit 1 > "work/noise_run_${i}_${attempt}.log" 2>&1 || true
+        RESTORE_MAX_SCORE=1.0 PULL_TIMEOUT_S=2400 ./run.sh --limit 1 > "work/noise_run_${i}_${attempt}.log" 2>&1 || true
         if ../.venv/bin/python - "$i" "$attempt" "$OUT" <<'PY'
 import glob, json, sys
 run, attempt, out = sys.argv[1], sys.argv[2], sys.argv[3]
