@@ -17,25 +17,36 @@ N="${1:-4}"
 OUT="$PWD/work/noise_floor.jsonl"
 : > "$OUT"
 
+# 一次失败不能静默变成"少一个样本":重掷失败就重试,连续失败到上限才记为缺失。
+# (第一版没有重试,一次上游瞬时 503 就丢了一个样本,而且只在汇总时才发现。)
+ATTEMPTS=3
 for i in $(seq 1 "$N"); do
-    echo "=== 重掷 $i/$N ==="
-    rm -rf work/agent-record work/artifacts.git work/artifact-work work/artifact-cache work/stack
-    # 缓存留着:工具确定性,缓存命中不改分数,只省时间。
-    PULL_TIMEOUT_S=2400 ./run.sh --limit 1 > "work/noise_run_$i.log" 2>&1 || true
-    ../.venv/bin/python - "$i" "$OUT" <<'PY'
+    for attempt in $(seq 1 "$ATTEMPTS"); do
+        echo "=== 重掷 $i/$N (第 $attempt 次尝试) ==="
+        rm -rf work/agent-record work/artifacts.git work/artifact-work work/artifact-cache work/stack
+        # 缓存留着:工具确定性,缓存命中不改分数,只省时间。
+        PULL_TIMEOUT_S=2400 ./run.sh --limit 1 > "work/noise_run_${i}_${attempt}.log" 2>&1 || true
+        if ../.venv/bin/python - "$i" "$attempt" "$OUT" <<'PY'
 import glob, json, sys
-run, out = sys.argv[1], sys.argv[2]
-files = glob.glob("work/agent-record/*.commits.jsonl")
+run, attempt, out = sys.argv[1], sys.argv[2], sys.argv[3]
 scores = None
-if files:
-    lines = open(files[0]).read().splitlines()
+for path in glob.glob("work/agent-record/*.commits.jsonl"):
+    lines = open(path).read().splitlines()
     if lines:
-        first = json.loads(lines[0])
-        scores = first["metrics"]["selection"]["evaluation"]["metrics"].get("current_scores")
+        scores = json.loads(lines[0])["metrics"]["selection"]["evaluation"]["metrics"].get("current_scores")
+        break
+if scores is None:
+    print(f"  重掷 {run} 第 {attempt} 次:没拿到 current_scores(见 work/noise_run_{run}_{attempt}.log)")
+    sys.exit(1)
 with open(out, "a") as f:
-    f.write(json.dumps({"run": int(run), "current_scores": scores}) + "\n")
+    f.write(json.dumps({"run": int(run), "attempt": int(attempt), "current_scores": scores}) + "\n")
 print(f"  重掷 {run}: current_scores = {scores}")
 PY
+        then
+            break
+        fi
+        [ "$attempt" = "$ATTEMPTS" ] && echo "  ！重掷 $i 连续失败 $ATTEMPTS 次,记为缺失"
+    done
 done
 
 echo

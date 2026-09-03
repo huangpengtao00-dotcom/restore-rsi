@@ -97,6 +97,34 @@ def _clip(proc: subprocess.CompletedProcess, limit: int = 400) -> str:
     return (proc.stdout or proc.stderr or "").strip()[:limit] or "(no output)"
 
 
+def _infer(client: ReefClient, messages: list[dict], log, attempts: int = 4) -> tuple[dict, str] | None:
+    """One relay turn, retried past transient upstream failures.
+
+    Without this a single hiccup kills the whole run: reef answers 503
+    "inference retry deadline exceeded (300s)" when the upstream stalls, the
+    exception propagates out of the relay, and run.sh's EXIT trap takes reef
+    down with it. That cost a re-roll of the noise-floor experiment on
+    2026-09-03 - the upstream answered a direct probe in 1.5 s a minute later,
+    so the failure was transient and the run was lost to the absence of a
+    retry, not to the outage. Returns None when every attempt fails; the caller
+    then closes the relay and scores the chain it already has.
+    """
+    for attempt in range(1, attempts + 1):
+        try:
+            return client.inference_with_record(SCENARIO, "/v1/chat/completions", {"model": MODEL, "messages": messages})
+        except (ReefClientError, TimeoutError, OSError) as exc:
+            status = getattr(exc, "status", None)
+            if isinstance(exc, ReefClientError) and status is not None and status < 500:
+                raise  # 4xx is our own bug (bad scenario, bad payload) - do not paper over it
+            if attempt == attempts:
+                log(f"  inference failed {attempts}x ({type(exc).__name__} {status}); closing the relay here")
+                return None
+            backoff = 5.0 * attempt
+            log(f"  inference attempt {attempt}/{attempts} failed ({type(exc).__name__} {status}); retrying in {backoff:.0f}s")
+            time.sleep(backoff)
+    return None
+
+
 def record_episode(tid: str, prompt: str, frame: dict, client: ReefClient, log) -> tuple[float, str, list[str]]:
     """Relay one task: served reply -> real `restore` commands -> stdout back.
 
@@ -118,10 +146,13 @@ def record_episode(tid: str, prompt: str, frame: dict, client: ReefClient, log) 
     with tempfile.TemporaryDirectory(prefix=f"restore-record-{tid}-") as scratch:
         cwd = Path(scratch)
         current = Path(frame["input"])
+        truncated = None
         for turn in range(1, MAX_TURNS + 1):
-            body, receipt = client.inference_with_record(
-                SCENARIO, "/v1/chat/completions", {"model": MODEL, "messages": messages}
-            )
+            answered = _infer(client, messages, log)
+            if answered is None:
+                truncated = turn
+                break
+            body, receipt = answered
             reply = body["choices"][0]["message"]["content"] or ""
             receipts.append(receipt)
             messages.append({"role": "assistant", "content": reply})
@@ -154,12 +185,14 @@ def record_episode(tid: str, prompt: str, frame: dict, client: ReefClient, log) 
                 observations.append(f"$ restore run {tool} {out.name}\n{_clip(proc, 200)}")
             messages.append({"role": "user", "content": "\n\n".join(observations) + "\n\n" + FOLLOW_UP})
         if not chain:
-            return 0.0, f"no tool ran in {len(receipts)} turn(s)", receipts
+            reason = f"upstream failed at turn {truncated}" if truncated else f"no tool ran in {len(receipts)} turn(s)"
+            return 0.0, reason, receipts
         score_run = _restore(["score", frame["input"], str(current), "--ref", frame["reference"]], cwd, env)
     score = parse_score(score_run.stdout)
     if score is None:
         return 0.0, f"score failed: {_clip(score_run, 200)}", receipts
-    return score, f"turns={len(receipts)} chain=" + ">".join(chain), receipts
+    note = f" truncated@{truncated}" if truncated else ""
+    return score, f"turns={len(receipts)} chain=" + ">".join(chain) + note, receipts
 
 
 def main() -> None:
