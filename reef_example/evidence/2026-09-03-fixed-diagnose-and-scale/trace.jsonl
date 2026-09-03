@@ -1,0 +1,140 @@
+{"ts": 1788423641.734423, "episode": "record-t32647412-1788423554", "kind": "diagnose", "input_sha": "7c8d3f7feedf7130", "result": {"haze": 0.317, "low_light": 0.441, "noise": 0.004, "blur": 0.0}}
+{"ts": 1788423651.666385, "episode": "record-t32647412-1788423554", "kind": "run", "tool": "dehaze_dcp", "input_sha": "7c8d3f7feedf7130", "output_sha": "3d43a38e6c9c0a25", "status": "ok", "ms": 29}
+{"ts": 1788423666.574236, "episode": "record-t32647412-1788423554", "kind": "run", "tool": "dehaze_dcp", "input_sha": "3d43a38e6c9c0a25", "output_sha": "933556cdb2765b9d", "status": "ok", "ms": 51}
+{"ts": 1788423696.713341, "episode": "record-t32647412-1788423554", "kind": "run", "tool": "lowlight_gamma", "input_sha": "933556cdb2765b9d", "output_sha": "2057ea12d32c9d02", "status": "ok", "ms": 15}
+{"ts": 1788423748.234165, "episode": "record-t32647412-1788423554", "kind": "diagnose", "input_sha": "2057ea12d32c9d02", "result": {"haze": 0.0, "low_light": 0.018, "noise": 0.015, "blur": 0.0}}
+{"ts": 1788423851.2409868, "episode": "record-t32647412-1788423554", "kind": "diagnose", "input_sha": "2057ea12d32c9d02", "result": {"haze": 0.0, "low_light": 0.018, "noise": 0.015, "blur": 0.0}}
+{"ts": 1788423851.304379, "episode": "record-t32647412-1788423554", "kind": "score", "mode": "reference", "psnr": 15.146, "score": 0.1307}
+{"ts": 1788423854.162411, "episode": "record-t9c652a0a-1788423851", "kind": "diagnose", "input_sha": "33d8e5eeafa0c0c9", "result": {"haze": 0.232, "low_light": 0.29, "noise": 0.003, "blur": 0.0}}
+{"ts": 1788423856.844453, "episode": "record-t9c652a0a-1788423851", "kind": "run", "tool": "dehaze_dcp", "input_sha": "33d8e5eeafa0c0c9", "output_sha": "5908d57abf869c04", "status": "ok", "ms": 21}
+{"ts": 1788423864.069193, "episode": "record-t9c652a0a-1788423851", "kind": "run", "tool": "lowlight_gamma", "input_sha": "5908d57abf869c04", "output_sha": "557b410302f0279b", "status": "ok", "ms": 7}
+{"ts": 1788423887.847162, "episode": "record-t9c652a0a-1788423851", "kind": "score", "mode": "reference", "psnr": 16.002, "score": 0.2165}
+{"ts": 1788423893.361033, "episode": "record-t37cbd87d-1788423887", "kind": "diagnose", "input_sha": "51c7a39fd052b2e0", "result": {"haze": 0.0, "low_light": 0.46, "noise": 0.642, "blur": 0.0}}
+{"ts": 1788423900.395776, "episode": "record-t37cbd87d-1788423887", "kind": "run", "tool": "denoise_bilateral", "input_sha": "51c7a39fd052b2e0", "output_sha": "6bad99dabe5660fa", "status": "ok", "ms": 34}
+{"ts": 1788423911.628848, "episode": "record-t37cbd87d-1788423887", "kind": "diagnose", "input_sha": "6bad99dabe5660fa", "result": {"haze": 0.0, "low_light": 0.517, "noise": 0.441, "blur": 0.0}}
+{"ts": 1788423937.7061539, "episode": "record-t37cbd87d-1788423887", "kind": "run", "tool": "lowlight_clahe", "input_sha": "6bad99dabe5660fa", "output_sha": "1207830ccdb4c822", "status": "ok", "ms": 16}
+{"ts": 1788423940.464532, "episode": "record-t37cbd87d-1788423887", "kind": "diagnose", "input_sha": "1207830ccdb4c822", "result": {"haze": 0.0, "low_light": 0.171, "noise": 0.641, "blur": 0.0}}
+{"ts": 1788423950.726885, "episode": "record-t37cbd87d-1788423887", "kind": "run", "tool": "denoise_bilateral", "input_sha": "1207830ccdb4c822", "output_sha": "1d7cf901d43d68da", "status": "ok", "ms": 34}
+{"ts": 1788423950.789855, "episode": "record-t37cbd87d-1788423887", "kind": "score", "mode": "reference", "psnr": 11.066, "score": 0.1648}
+{"ts": 1788424007.716798, "episode": "pi-i4x8vv0q", "kind": "diagnose", "input_sha": "7c8d3f7feedf7130", "result": {"haze": 0.317, "low_light": 0.441, "noise": 0.004, "blur": 0.0}}
+{"ts": 1788424011.074049, "episode": "pi-i4x8vv0q", "kind": "run", "tool": "dehaze_dcp", "input_sha": "7c8d3f7feedf7130", "output_sha": "3d43a38e6c9c0a25", "status": "cache_hit", "ms": 0}
+{"ts": 1788424013.069301, "episode": "pi-i4x8vv0q", "kind": "run", "tool": "lowlight_gamma", "input_sha": "3d43a38e6c9c0a25", "output_sha": "b743f29e2e38d637", "status": "ok", "ms": 7}
+{"ts": 1788424018.684614, "episode": "pi-i4x8vv0q", "kind": "diagnose", "input_sha": "b743f29e2e38d637", "result": {"haze": 0.0, "low_light": 0.065, "noise": 0.01, "blur": 0.0}}
+{"ts": 1788424022.2977269, "episode": "pi-i4x8vv0q", "kind": "run", "tool": "lowlight_clahe", "input_sha": "3d43a38e6c9c0a25", "output_sha": "e3455c44a8cb8eeb", "status": "ok", "ms": 8}
+{"ts": 1788424022.414484, "episode": "pi-i4x8vv0q", "kind": "diagnose", "input_sha": "e3455c44a8cb8eeb", "result": {"haze": 0.0, "low_light": 0.359, "noise": 0.022, "blur": 0.0}}
+{"ts": 1788424026.975956, "episode": "judge-t32647412", "kind": "score", "mode": "reference", "psnr": 12.711, "score": 0.0}
+{"ts": 1788424029.427996, "episode": "adhoc-1788424029-45294", "kind": "diagnose", "input_sha": "33d8e5eeafa0c0c9", "result": {"haze": 0.232, "low_light": 0.29, "noise": 0.003, "blur": 0.0}}
+{"ts": 1788424033.4702551, "episode": "pi-jtyw__nr", "kind": "run", "tool": "dehaze_dcp", "input_sha": "33d8e5eeafa0c0c9", "output_sha": "5908d57abf869c04", "status": "cache_hit", "ms": 0}
+{"ts": 1788424033.592963, "episode": "pi-jtyw__nr", "kind": "diagnose", "input_sha": "5908d57abf869c04", "result": {"haze": 0.0, "low_light": 0.376, "noise": 0.009, "blur": 0.0}}
+{"ts": 1788424036.3898308, "episode": "pi-jtyw__nr", "kind": "run", "tool": "lowlight_clahe", "input_sha": "5908d57abf869c04", "output_sha": "b4f015e3a5a5ec95", "status": "ok", "ms": 8}
+{"ts": 1788424036.5083132, "episode": "pi-jtyw__nr", "kind": "diagnose", "input_sha": "b4f015e3a5a5ec95", "result": {"haze": 0.0, "low_light": 0.22, "noise": 0.024, "blur": 0.0}}
+{"ts": 1788424043.003967, "episode": "pi-jtyw__nr", "kind": "run", "tool": "lowlight_gamma", "input_sha": "b4f015e3a5a5ec95", "output_sha": "ba186677f3a7453f", "status": "ok", "ms": 6}
+{"ts": 1788424043.122505, "episode": "pi-jtyw__nr", "kind": "diagnose", "input_sha": "ba186677f3a7453f", "result": {"haze": 0.0, "low_light": 0.0, "noise": 0.025, "blur": 0.0}}
+{"ts": 1788424060.0211651, "episode": "pi-jtyw__nr", "kind": "run", "tool": "denoise_bilateral", "input_sha": "ba186677f3a7453f", "output_sha": "8e10cee6588a79d0", "status": "ok", "ms": 30}
+{"ts": 1788424060.1381068, "episode": "pi-jtyw__nr", "kind": "diagnose", "input_sha": "8e10cee6588a79d0", "result": {"haze": 0.0, "low_light": 0.0, "noise": 0.007, "blur": 0.0}}
+{"ts": 1788424068.109169, "episode": "pi-jtyw__nr", "kind": "run", "tool": "lowlight_gamma", "input_sha": "5908d57abf869c04", "output_sha": "557b410302f0279b", "status": "cache_hit", "ms": 0}
+{"ts": 1788424068.21677, "episode": "pi-jtyw__nr", "kind": "diagnose", "input_sha": "557b410302f0279b", "result": {"haze": 0.0, "low_light": 0.016, "noise": 0.008, "blur": 0.0}}
+{"ts": 1788424068.281724, "episode": "pi-jtyw__nr", "kind": "run", "tool": "lowlight_gamma", "input_sha": "557b410302f0279b", "output_sha": "4a4ebe946ed0a6e8", "status": "ok", "ms": 6}
+{"ts": 1788424068.389468, "episode": "pi-jtyw__nr", "kind": "diagnose", "input_sha": "4a4ebe946ed0a6e8", "result": {"haze": 0.0, "low_light": 0.0, "noise": 0.008, "blur": 0.0}}
+{"ts": 1788424079.555007, "episode": "pi-jtyw__nr", "kind": "run", "tool": "sharpen_unsharp", "input_sha": "4a4ebe946ed0a6e8", "output_sha": "3b67bd34723c8488", "status": "ok", "ms": 5}
+{"ts": 1788424079.677736, "episode": "pi-jtyw__nr", "kind": "diagnose", "input_sha": "3b67bd34723c8488", "result": {"haze": 0.0, "low_light": 0.0, "noise": 0.019, "blur": 0.0}}
+{"ts": 1788424090.926347, "episode": "pi-jtyw__nr", "kind": "run", "tool": "lowlight_gamma", "input_sha": "4a4ebe946ed0a6e8", "output_sha": "7e2a3e350adf9b25", "status": "ok", "ms": 6}
+{"ts": 1788424091.038838, "episode": "pi-jtyw__nr", "kind": "diagnose", "input_sha": "7e2a3e350adf9b25", "result": {"haze": 0.0, "low_light": 0.0, "noise": 0.008, "blur": 0.0}}
+{"ts": 1788424091.107851, "episode": "pi-jtyw__nr", "kind": "run", "tool": "lowlight_gamma", "input_sha": "7e2a3e350adf9b25", "output_sha": "3442ed649742653d", "status": "ok", "ms": 6}
+{"ts": 1788424091.22224, "episode": "pi-jtyw__nr", "kind": "diagnose", "input_sha": "3442ed649742653d", "result": {"haze": 0.0, "low_light": 0.0, "noise": 0.008, "blur": 0.0}}
+{"ts": 1788424108.348894, "episode": "judge-t9c652a0a", "kind": "score", "mode": "reference", "psnr": 18.668, "score": 0.3942}
+{"ts": 1788424113.631351, "episode": "pi-3v44ik9g", "kind": "diagnose", "input_sha": "51c7a39fd052b2e0", "result": {"haze": 0.0, "low_light": 0.46, "noise": 0.642, "blur": 0.0}}
+{"ts": 1788424119.9569201, "episode": "pi-3v44ik9g", "kind": "run", "tool": "denoise_bilateral", "input_sha": "51c7a39fd052b2e0", "output_sha": "6bad99dabe5660fa", "status": "cache_hit", "ms": 0}
+{"ts": 1788424122.813937, "episode": "pi-3v44ik9g", "kind": "diagnose", "input_sha": "6bad99dabe5660fa", "result": {"haze": 0.0, "low_light": 0.517, "noise": 0.441, "blur": 0.0}}
+{"ts": 1788424127.381359, "episode": "pi-3v44ik9g", "kind": "run", "tool": "lowlight_gamma", "input_sha": "6bad99dabe5660fa", "output_sha": "51acbb4f8ba40207", "status": "ok", "ms": 19}
+{"ts": 1788424129.458199, "episode": "pi-3v44ik9g", "kind": "diagnose", "input_sha": "51acbb4f8ba40207", "result": {"haze": 0.0, "low_light": 0.128, "noise": 0.49, "blur": 0.0}}
+{"ts": 1788424132.93727, "episode": "pi-3v44ik9g", "kind": "run", "tool": "denoise_bilateral", "input_sha": "51acbb4f8ba40207", "output_sha": "6349fdc7bdc26ef5", "status": "ok", "ms": 39}
+{"ts": 1788424134.691255, "episode": "pi-3v44ik9g", "kind": "diagnose", "input_sha": "6349fdc7bdc26ef5", "result": {"haze": 0.0, "low_light": 0.181, "noise": 0.281, "blur": 0.0}}
+{"ts": 1788424143.573167, "episode": "pi-3v44ik9g", "kind": "run", "tool": "lowlight_gamma", "input_sha": "6349fdc7bdc26ef5", "output_sha": "fe5afa000e0b7ef1", "status": "ok", "ms": 8}
+{"ts": 1788424143.745812, "episode": "pi-3v44ik9g", "kind": "diagnose", "input_sha": "fe5afa000e0b7ef1", "result": {"haze": 0.0, "low_light": 0.11, "noise": 0.283, "blur": 0.0}}
+{"ts": 1788424147.798497, "episode": "judge-t37cbd87d", "kind": "score", "mode": "reference", "psnr": 17.323, "score": 0.5819}
+{"ts": 1788424150.595057, "episode": "pi-cd0xchud", "kind": "diagnose", "input_sha": "7c8d3f7feedf7130", "result": {"haze": 0.317, "low_light": 0.441, "noise": 0.004, "blur": 0.0}}
+{"ts": 1788424154.686209, "episode": "pi-cd0xchud", "kind": "run", "tool": "dehaze_dcp", "input_sha": "7c8d3f7feedf7130", "output_sha": "3d43a38e6c9c0a25", "status": "cache_hit", "ms": 0}
+{"ts": 1788424159.617923, "episode": "pi-cd0xchud", "kind": "run", "tool": "lowlight_gamma", "input_sha": "3d43a38e6c9c0a25", "output_sha": "b743f29e2e38d637", "status": "cache_hit", "ms": 0}
+{"ts": 1788424162.893322, "episode": "pi-cd0xchud", "kind": "diagnose", "input_sha": "b743f29e2e38d637", "result": {"haze": 0.0, "low_light": 0.065, "noise": 0.01, "blur": 0.0}}
+{"ts": 1788424171.159801, "episode": "judge-t32647412", "kind": "score", "mode": "reference", "psnr": 19.422, "score": 0.4158}
+{"ts": 1788424174.9592571, "episode": "pi-fsz0a5h1", "kind": "diagnose", "input_sha": "33d8e5eeafa0c0c9", "result": {"haze": 0.232, "low_light": 0.29, "noise": 0.003, "blur": 0.0}}
+{"ts": 1788424178.5203562, "episode": "pi-fsz0a5h1", "kind": "run", "tool": "dehaze_dcp", "input_sha": "33d8e5eeafa0c0c9", "output_sha": "5908d57abf869c04", "status": "cache_hit", "ms": 0}
+{"ts": 1788424181.747006, "episode": "pi-fsz0a5h1", "kind": "diagnose", "input_sha": "5908d57abf869c04", "result": {"haze": 0.0, "low_light": 0.376, "noise": 0.009, "blur": 0.0}}
+{"ts": 1788424184.3662431, "episode": "pi-fsz0a5h1", "kind": "run", "tool": "lowlight_gamma", "input_sha": "5908d57abf869c04", "output_sha": "557b410302f0279b", "status": "cache_hit", "ms": 0}
+{"ts": 1788424186.106496, "episode": "pi-fsz0a5h1", "kind": "diagnose", "input_sha": "557b410302f0279b", "result": {"haze": 0.0, "low_light": 0.016, "noise": 0.008, "blur": 0.0}}
+{"ts": 1788424197.073511, "episode": "judge-t9c652a0a", "kind": "score", "mode": "reference", "psnr": 16.002, "score": 0.2165}
+{"ts": 1788424199.852014, "episode": "pi-edgb17il", "kind": "diagnose", "input_sha": "51c7a39fd052b2e0", "result": {"haze": 0.0, "low_light": 0.46, "noise": 0.642, "blur": 0.0}}
+{"ts": 1788424204.46138, "episode": "pi-edgb17il", "kind": "run", "tool": "denoise_bilateral", "input_sha": "51c7a39fd052b2e0", "output_sha": "6bad99dabe5660fa", "status": "cache_hit", "ms": 0}
+{"ts": 1788424206.336525, "episode": "pi-edgb17il", "kind": "run", "tool": "lowlight_gamma", "input_sha": "6bad99dabe5660fa", "output_sha": "51acbb4f8ba40207", "status": "cache_hit", "ms": 0}
+{"ts": 1788424208.310904, "episode": "pi-edgb17il", "kind": "diagnose", "input_sha": "51acbb4f8ba40207", "result": {"haze": 0.0, "low_light": 0.128, "noise": 0.49, "blur": 0.0}}
+{"ts": 1788424216.143269, "episode": "pi-edgb17il", "kind": "run", "tool": "denoise_bilateral", "input_sha": "51acbb4f8ba40207", "output_sha": "6349fdc7bdc26ef5", "status": "cache_hit", "ms": 0}
+{"ts": 1788424217.987957, "episode": "pi-edgb17il", "kind": "diagnose", "input_sha": "6349fdc7bdc26ef5", "result": {"haze": 0.0, "low_light": 0.181, "noise": 0.281, "blur": 0.0}}
+{"ts": 1788424222.724345, "episode": "pi-edgb17il", "kind": "run", "tool": "lowlight_clahe", "input_sha": "6349fdc7bdc26ef5", "output_sha": "512647974b52d9cd", "status": "ok", "ms": 10}
+{"ts": 1788424224.7458959, "episode": "pi-edgb17il", "kind": "diagnose", "input_sha": "512647974b52d9cd", "result": {"haze": 0.0, "low_light": 0.074, "noise": 0.456, "blur": 0.0}}
+{"ts": 1788424227.354799, "episode": "pi-edgb17il", "kind": "run", "tool": "denoise_bilateral", "input_sha": "512647974b52d9cd", "output_sha": "d20091738e510c89", "status": "ok", "ms": 31}
+{"ts": 1788424229.274463, "episode": "pi-edgb17il", "kind": "diagnose", "input_sha": "d20091738e510c89", "result": {"haze": 0.0, "low_light": 0.067, "noise": 0.334, "blur": 0.0}}
+{"ts": 1788424234.4811678, "episode": "pi-edgb17il", "kind": "run", "tool": "denoise_median", "input_sha": "d20091738e510c89", "output_sha": "fbc9f96852925180", "status": "ok", "ms": 15}
+{"ts": 1788424234.632716, "episode": "pi-edgb17il", "kind": "diagnose", "input_sha": "fbc9f96852925180", "result": {"haze": 0.0, "low_light": 0.133, "noise": 0.08, "blur": 0.0}}
+{"ts": 1788424243.542494, "episode": "pi-edgb17il", "kind": "run", "tool": "lowlight_gamma", "input_sha": "fbc9f96852925180", "output_sha": "fbc9f96852925180", "status": "ok", "ms": 9}
+{"ts": 1788424243.6886451, "episode": "pi-edgb17il", "kind": "diagnose", "input_sha": "fbc9f96852925180", "result": {"haze": 0.0, "low_light": 0.133, "noise": 0.08, "blur": 0.0}}
+{"ts": 1788424250.857482, "episode": "judge-t37cbd87d", "kind": "score", "mode": "reference", "psnr": 16.779, "score": 0.5457}
+{"ts": 1788424299.9408529, "episode": "pi-8a_g3qwg", "kind": "diagnose", "input_sha": "7c8d3f7feedf7130", "result": {"haze": 0.317, "low_light": 0.441, "noise": 0.004, "blur": 0.0}}
+{"ts": 1788424303.368473, "episode": "pi-8a_g3qwg", "kind": "run", "tool": "dehaze_dcp", "input_sha": "7c8d3f7feedf7130", "output_sha": "3d43a38e6c9c0a25", "status": "cache_hit", "ms": 0}
+{"ts": 1788424307.842685, "episode": "pi-8a_g3qwg", "kind": "run", "tool": "lowlight_gamma", "input_sha": "3d43a38e6c9c0a25", "output_sha": "b743f29e2e38d637", "status": "cache_hit", "ms": 0}
+{"ts": 1788424309.9994009, "episode": "pi-8a_g3qwg", "kind": "diagnose", "input_sha": "b743f29e2e38d637", "result": {"haze": 0.0, "low_light": 0.065, "noise": 0.01, "blur": 0.0}}
+{"ts": 1788424318.639679, "episode": "pi-8a_g3qwg", "kind": "run", "tool": "lowlight_gamma", "input_sha": "b743f29e2e38d637", "output_sha": "509e6c0c95433f1b", "status": "ok", "ms": 8}
+{"ts": 1788424318.749357, "episode": "pi-8a_g3qwg", "kind": "diagnose", "input_sha": "509e6c0c95433f1b", "result": {"haze": 0.0, "low_light": 0.0, "noise": 0.01, "blur": 0.0}}
+{"ts": 1788424323.527719, "episode": "judge-t32647412", "kind": "score", "mode": "reference", "psnr": 21.768, "score": 0.5722}
+{"ts": 1788424326.1845062, "episode": "pi-1olahpby", "kind": "diagnose", "input_sha": "33d8e5eeafa0c0c9", "result": {"haze": 0.232, "low_light": 0.29, "noise": 0.003, "blur": 0.0}}
+{"ts": 1788424329.3291378, "episode": "pi-1olahpby", "kind": "run", "tool": "dehaze_dcp", "input_sha": "33d8e5eeafa0c0c9", "output_sha": "5908d57abf869c04", "status": "cache_hit", "ms": 0}
+{"ts": 1788424335.967318, "episode": "pi-1olahpby", "kind": "run", "tool": "lowlight_gamma", "input_sha": "5908d57abf869c04", "output_sha": "557b410302f0279b", "status": "cache_hit", "ms": 0}
+{"ts": 1788424337.6363862, "episode": "pi-1olahpby", "kind": "diagnose", "input_sha": "557b410302f0279b", "result": {"haze": 0.0, "low_light": 0.016, "noise": 0.008, "blur": 0.0}}
+{"ts": 1788424342.454785, "episode": "judge-t9c652a0a", "kind": "score", "mode": "reference", "psnr": 16.002, "score": 0.2165}
+{"ts": 1788424348.561926, "episode": "pi-09u8vy0h", "kind": "diagnose", "input_sha": "51c7a39fd052b2e0", "result": {"haze": 0.0, "low_light": 0.46, "noise": 0.642, "blur": 0.0}}
+{"ts": 1788424354.662068, "episode": "pi-09u8vy0h", "kind": "run", "tool": "denoise_bilateral", "input_sha": "51c7a39fd052b2e0", "output_sha": "6bad99dabe5660fa", "status": "cache_hit", "ms": 0}
+{"ts": 1788424356.19372, "episode": "pi-09u8vy0h", "kind": "run", "tool": "lowlight_gamma", "input_sha": "6bad99dabe5660fa", "output_sha": "51acbb4f8ba40207", "status": "cache_hit", "ms": 0}
+{"ts": 1788424358.119781, "episode": "pi-09u8vy0h", "kind": "diagnose", "input_sha": "51acbb4f8ba40207", "result": {"haze": 0.0, "low_light": 0.128, "noise": 0.49, "blur": 0.0}}
+{"ts": 1788424360.760789, "episode": "pi-09u8vy0h", "kind": "run", "tool": "denoise_bilateral", "input_sha": "51acbb4f8ba40207", "output_sha": "6349fdc7bdc26ef5", "status": "cache_hit", "ms": 0}
+{"ts": 1788424360.930197, "episode": "pi-09u8vy0h", "kind": "diagnose", "input_sha": "6349fdc7bdc26ef5", "result": {"haze": 0.0, "low_light": 0.181, "noise": 0.281, "blur": 0.0}}
+{"ts": 1788424362.883345, "episode": "pi-09u8vy0h", "kind": "run", "tool": "lowlight_gamma", "input_sha": "6349fdc7bdc26ef5", "output_sha": "fe5afa000e0b7ef1", "status": "cache_hit", "ms": 0}
+{"ts": 1788424363.0531042, "episode": "pi-09u8vy0h", "kind": "diagnose", "input_sha": "fe5afa000e0b7ef1", "result": {"haze": 0.0, "low_light": 0.11, "noise": 0.283, "blur": 0.0}}
+{"ts": 1788424368.807276, "episode": "pi-09u8vy0h", "kind": "run", "tool": "denoise_bilateral", "input_sha": "fe5afa000e0b7ef1", "output_sha": "b9b3f7b4b6a75d04", "status": "ok", "ms": 34}
+{"ts": 1788424368.971905, "episode": "pi-09u8vy0h", "kind": "diagnose", "input_sha": "b9b3f7b4b6a75d04", "result": {"haze": 0.002, "low_light": 0.14, "noise": 0.117, "blur": 0.0}}
+{"ts": 1788424372.1394482, "episode": "pi-09u8vy0h", "kind": "run", "tool": "sharpen_unsharp", "input_sha": "b9b3f7b4b6a75d04", "output_sha": "79592a7e44d08156", "status": "ok", "ms": 7}
+{"ts": 1788424372.29908, "episode": "pi-09u8vy0h", "kind": "diagnose", "input_sha": "79592a7e44d08156", "result": {"haze": 0.0, "low_light": 0.049, "noise": 0.218, "blur": 0.0}}
+{"ts": 1788424377.06703, "episode": "pi-09u8vy0h", "kind": "run", "tool": "denoise_bilateral", "input_sha": "79592a7e44d08156", "output_sha": "ebee5131df099538", "status": "ok", "ms": 29}
+{"ts": 1788424377.2197142, "episode": "pi-09u8vy0h", "kind": "diagnose", "input_sha": "ebee5131df099538", "result": {"haze": 0.0, "low_light": 0.067, "noise": 0.138, "blur": 0.0}}
+{"ts": 1788424403.005198, "episode": "pi-fbjzy2ag", "kind": "diagnose", "input_sha": "7c8d3f7feedf7130", "result": {"haze": 0.317, "low_light": 0.441, "noise": 0.004, "blur": 0.0}}
+{"ts": 1788424408.040073, "episode": "pi-fbjzy2ag", "kind": "run", "tool": "dehaze_dcp", "input_sha": "7c8d3f7feedf7130", "output_sha": "3d43a38e6c9c0a25", "status": "cache_hit", "ms": 0}
+{"ts": 1788424409.944336, "episode": "pi-fbjzy2ag", "kind": "diagnose", "input_sha": "3d43a38e6c9c0a25", "result": {"haze": 0.0, "low_light": 0.506, "noise": 0.01, "blur": 0.0}}
+{"ts": 1788424413.059875, "episode": "pi-fbjzy2ag", "kind": "run", "tool": "lowlight_gamma", "input_sha": "3d43a38e6c9c0a25", "output_sha": "b743f29e2e38d637", "status": "cache_hit", "ms": 0}
+{"ts": 1788424415.025832, "episode": "pi-fbjzy2ag", "kind": "diagnose", "input_sha": "b743f29e2e38d637", "result": {"haze": 0.0, "low_light": 0.065, "noise": 0.01, "blur": 0.0}}
+{"ts": 1788424426.6639569, "episode": "pi-fbjzy2ag", "kind": "run", "tool": "lowlight_gamma", "input_sha": "3d43a38e6c9c0a25", "output_sha": "b743f29e2e38d637", "status": "cache_hit", "ms": 0}
+{"ts": 1788424426.772359, "episode": "pi-fbjzy2ag", "kind": "diagnose", "input_sha": "b743f29e2e38d637", "result": {"haze": 0.0, "low_light": 0.065, "noise": 0.01, "blur": 0.0}}
+{"ts": 1788424428.789207, "episode": "judge-t32647412", "kind": "score", "mode": "reference", "psnr": 19.422, "score": 0.4158}
+{"ts": 1788424431.234238, "episode": "pi-tti4l8tc", "kind": "diagnose", "input_sha": "33d8e5eeafa0c0c9", "result": {"haze": 0.232, "low_light": 0.29, "noise": 0.003, "blur": 0.0}}
+{"ts": 1788424435.0367901, "episode": "pi-tti4l8tc", "kind": "run", "tool": "dehaze_dcp", "input_sha": "33d8e5eeafa0c0c9", "output_sha": "5908d57abf869c04", "status": "cache_hit", "ms": 0}
+{"ts": 1788424436.995616, "episode": "pi-tti4l8tc", "kind": "diagnose", "input_sha": "5908d57abf869c04", "result": {"haze": 0.0, "low_light": 0.376, "noise": 0.009, "blur": 0.0}}
+{"ts": 1788424439.272449, "episode": "pi-tti4l8tc", "kind": "run", "tool": "lowlight_gamma", "input_sha": "5908d57abf869c04", "output_sha": "557b410302f0279b", "status": "cache_hit", "ms": 0}
+{"ts": 1788424440.546976, "episode": "pi-tti4l8tc", "kind": "diagnose", "input_sha": "557b410302f0279b", "result": {"haze": 0.0, "low_light": 0.016, "noise": 0.008, "blur": 0.0}}
+{"ts": 1788424450.574739, "episode": "pi-tti4l8tc", "kind": "run", "tool": "sharpen_unsharp", "input_sha": "557b410302f0279b", "output_sha": "04dc793340c7af20", "status": "ok", "ms": 6}
+{"ts": 1788424452.419915, "episode": "pi-tti4l8tc", "kind": "diagnose", "input_sha": "04dc793340c7af20", "result": {"haze": 0.0, "low_light": 0.0, "noise": 0.018, "blur": 0.0}}
+{"ts": 1788424455.245825, "episode": "judge-t9c652a0a", "kind": "score", "mode": "reference", "psnr": 15.826, "score": 0.2047}
+{"ts": 1788424458.039615, "episode": "pi-2qd6ntu3", "kind": "diagnose", "input_sha": "51c7a39fd052b2e0", "result": {"haze": 0.0, "low_light": 0.46, "noise": 0.642, "blur": 0.0}}
+{"ts": 1788424461.0699918, "episode": "pi-2qd6ntu3", "kind": "run", "tool": "denoise_bilateral", "input_sha": "51c7a39fd052b2e0", "output_sha": "6bad99dabe5660fa", "status": "cache_hit", "ms": 0}
+{"ts": 1788424462.886034, "episode": "pi-2qd6ntu3", "kind": "diagnose", "input_sha": "6bad99dabe5660fa", "result": {"haze": 0.0, "low_light": 0.517, "noise": 0.441, "blur": 0.0}}
+{"ts": 1788424466.852869, "episode": "pi-2qd6ntu3", "kind": "run", "tool": "lowlight_clahe", "input_sha": "6bad99dabe5660fa", "output_sha": "1207830ccdb4c822", "status": "cache_hit", "ms": 0}
+{"ts": 1788424468.878221, "episode": "pi-2qd6ntu3", "kind": "diagnose", "input_sha": "1207830ccdb4c822", "result": {"haze": 0.0, "low_light": 0.171, "noise": 0.641, "blur": 0.0}}
+{"ts": 1788424472.1217558, "episode": "pi-2qd6ntu3", "kind": "run", "tool": "denoise_bilateral", "input_sha": "1207830ccdb4c822", "output_sha": "1d7cf901d43d68da", "status": "cache_hit", "ms": 0}
+{"ts": 1788424474.4860742, "episode": "pi-2qd6ntu3", "kind": "diagnose", "input_sha": "1d7cf901d43d68da", "result": {"haze": 0.0, "low_light": 0.174, "noise": 0.538, "blur": 0.0}}
+{"ts": 1788424480.190872, "episode": "pi-2qd6ntu3", "kind": "run", "tool": "denoise_bilateral", "input_sha": "1d7cf901d43d68da", "output_sha": "c4ba190ff2672c7b", "status": "ok", "ms": 31}
+{"ts": 1788424482.07803, "episode": "pi-2qd6ntu3", "kind": "diagnose", "input_sha": "c4ba190ff2672c7b", "result": {"haze": 0.0, "low_light": 0.179, "noise": 0.446, "blur": 0.0}}
+{"ts": 1788424489.7064698, "episode": "judge-t37cbd87d", "kind": "score", "mode": "reference", "psnr": 11.178, "score": 0.1722}
+{"ts": 1788424504.9835079, "episode": "pi-hvpbhjce", "kind": "diagnose", "input_sha": "7c8d3f7feedf7130", "result": {"haze": 0.317, "low_light": 0.441, "noise": 0.004, "blur": 0.0}}
+{"ts": 1788424509.5125859, "episode": "pi-hvpbhjce", "kind": "run", "tool": "dehaze_dcp", "input_sha": "7c8d3f7feedf7130", "output_sha": "3d43a38e6c9c0a25", "status": "cache_hit", "ms": 0}
+{"ts": 1788424509.572874, "episode": "pi-hvpbhjce", "kind": "run", "tool": "lowlight_clahe", "input_sha": "3d43a38e6c9c0a25", "output_sha": "e3455c44a8cb8eeb", "status": "cache_hit", "ms": 0}
+{"ts": 1788424511.671058, "episode": "pi-hvpbhjce", "kind": "diagnose", "input_sha": "3d43a38e6c9c0a25", "result": {"haze": 0.0, "low_light": 0.506, "noise": 0.01, "blur": 0.0}}
+{"ts": 1788424511.7888908, "episode": "pi-hvpbhjce", "kind": "diagnose", "input_sha": "e3455c44a8cb8eeb", "result": {"haze": 0.0, "low_light": 0.359, "noise": 0.022, "blur": 0.0}}
+{"ts": 1788424514.765343, "episode": "pi-hvpbhjce", "kind": "run", "tool": "lowlight_gamma", "input_sha": "e3455c44a8cb8eeb", "output_sha": "92322eaa700ebb0d", "status": "ok", "ms": 7}
+{"ts": 1788424514.882578, "episode": "pi-hvpbhjce", "kind": "diagnose", "input_sha": "92322eaa700ebb0d", "result": {"haze": 0.0, "low_light": 0.067, "noise": 0.025, "blur": 0.0}}

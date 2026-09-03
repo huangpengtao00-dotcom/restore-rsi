@@ -1,0 +1,149 @@
+materialized 3 task(s) -> /Users/opall/research/restore-rsi/reef_example/work/recipes/harness_evolve.yaml, /Users/opall/research/restore-rsi/reef_example/work/tasks.json
+  t32647412 = haze_low_light_00
+  t9c652a0a = haze_low_light_01
+  t37cbd87d = low_light_noise_00
+== record+report: 3 task(s), scenario restore-evolve
+task 1 t32647412: relaying (up to 6 turns)
+  turn 1: 1 command(s) ['diagnose'] reply 'restore diagnose /Users/opall/research/restore-rsi/reef_example/work/inputs/t32647412.png'
+  turn 2: 1 command(s) ['run'] reply 'restore run dehaze_dcp /Users/opall/research/restore-rsi/reef_example/work/inputs/t32647412.png /Users/opall/research/restore-rsi/reef_example/work/t32647412_de'
+  turn 3: 1 command(s) ['run'] reply 'restore run dehaze_dcp /Users/opall/research/restore-rsi/reef_example/work/inputs/t32647412.png /Users/opall/research/restore-rsi/reef_example/work/t32647412_de'
+  turn 4: 1 command(s) ['run'] reply 'restore run lowlight_gamma /var/folders/fl/s0ctmflj601_6c_4j1nqcm7h0000gp/T/restore-record-t32647412-8j2ov2iv/step1_dehaze_dcp.png /Users/opall/research/restore'
+  turn 5: 1 command(s) ['diagnose'] reply 'restore diagnose /var/folders/fl/s0ctmflj601_6c_4j1nqcm7h0000gp/T/restore-record-t32647412-8j2ov2iv/step3_lowlight_gamma.png'
+  turn 6: 1 command(s) ['diagnose'] reply 'restore diagnose /Users/opall/research/restore-rsi/reef_example/work/t32647412_final.png'
+task 1 t32647412: score 0.1307 (turns=6 chain=dehaze_dcp>dehaze_dcp>lowlight_gamma) receipts ['6cbdc745790b4a13a4c1695ec3342759', '5576e573c85946b6afb7689530d24aa4', 'fca3083726994b20bb135f38e6ed3119', 'f15f8634747b49258cfeb021d9746630', '7db16d71b5a3459db176e709b94b77e6', 'db9b66ab0f7f41a5998c508f479c6954'] 297s
+task 2 t9c652a0a: relaying (up to 6 turns)
+  turn 1: 1 command(s) ['diagnose'] reply 'restore diagnose /Users/opall/research/restore-rsi/reef_example/work/inputs/t9c652a0a.png'
+  turn 2: 1 command(s) ['run'] reply 'restore run dehaze_dcp /Users/opall/research/restore-rsi/reef_example/work/inputs/t9c652a0a.png dehazed.png'
+  turn 3: 1 command(s) ['run'] reply 'restore run lowlight_gamma /var/folders/fl/s0ctmflj601_6c_4j1nqcm7h0000gp/T/restore-record-t9c652a0a-tnved_b2/step1_dehaze_dcp.png final_image.png'
+  turn 4: 0 command(s) [] reply '/var/folders/fl/s0ctmflj601_6c_4j1nqcm7h0000gp/T/restore-record-t9c652a0a-tnved_b2/step2_lowlight_gamma.png'
+  turn 5: 0 command(s) [] reply '/var/folders/fl/s0ctmflj601_6c_4j1nqcm7h0000gp/T/restore-record-t9c652a0a-tnved_b2/step2_lowlight_gamma.png'
+task 2 t9c652a0a: score 0.2165 (turns=5 chain=dehaze_dcp>lowlight_gamma) receipts ['9a58d17fd867406e8fa5d90b272cb40a', 'd0e72331162247399cbc18f57ea11b68', 'f13fd5bade6e453fbaea0ba8685299e9', '0cca6a6e88e44317b57776713df8b039', '76633a8fefb34929863c1466dfdbb425'] 37s
+task 3 t37cbd87d: relaying (up to 6 turns)
+  turn 1: 1 command(s) ['diagnose'] reply 'restore diagnose /Users/opall/research/restore-rsi/reef_example/work/inputs/t37cbd87d.png'
+  turn 2: 1 command(s) ['run'] reply 'restore run denoise_bilateral /Users/opall/research/restore-rsi/reef_example/work/inputs/t37cbd87d.png t37cbd87d_denoised.png'
+  turn 3: 1 command(s) ['diagnose'] reply 'restore diagnose /var/folders/fl/s0ctmflj601_6c_4j1nqcm7h0000gp/T/restore-record-t37cbd87d-e1ueuu6n/step1_denoise_bilateral.png'
+  turn 4: 1 command(s) ['run'] reply 'restore run lowlight_clahe /var/folders/fl/s0ctmflj601_6c_4j1nqcm7h0000gp/T/restore-record-t37cbd87d-e1ueuu6n/step1_denoise_bilateral.png step2_clahe.png'
+  turn 5: 1 command(s) ['diagnose'] reply 'restore diagnose /var/folders/fl/s0ctmflj601_6c_4j1nqcm7h0000gp/T/restore-record-t37cbd87d-e1ueuu6n/step2_lowlight_clahe.png'
+  turn 6: 1 command(s) ['run'] reply 'restore run denoise_bilateral /var/folders/fl/s0ctmflj601_6c_4j1nqcm7h0000gp/T/restore-record-t37cbd87d-e1ueuu6n/step2_lowlight_clahe.png step3_denoise_bilatera'
+task 3 t37cbd87d: score 0.1648 (turns=6 chain=denoise_bilateral>lowlight_clahe>denoise_bilateral) receipts ['ab7d50ecbd0d48048fd637a22b1dde8c', '5c24e16e66d94f21bdd0997160c2228a', '5158e3b1039d40a89c21ffce2b1e7fa0', 'd4ab32bef9bc470b95be9f60fa26d8a2', '1546006e60c942849c42061ee61793e7', '4520aab47b0f407c8bc2c57bc85b79b6'] 63s
+3 failing report(s) batched; each triggers one gated evolve step (episodes take minutes)
+  status: {"last_drain_at": null, "preload_errors": {}, "scenarios": {"restore-evolve": {"batch_ready": false, "checkpoint_storage": null, "current_runtime_load_id": null, "inference_admission": {"active": 0, "open": true}, "last_committed_step": null, "processor": {}, "scenario_step": 0}}, "serving": {}}
+published: artifact fc73e3b0304113cc622c1a290cee12fee79fcad4 (parent e2efdd64f218e73d72627a2386f798579c93e270)
+gate metrics (the evolve step that published this artifact):
+{
+  "candidate_score": 0.9761,
+  "current_score": 1.178,
+  "episode_failures": 0,
+  "failures": {
+    "fixed": 0,
+    "new": 0,
+    "persisting": 0
+  },
+  "losses": 1,
+  "mutation": {
+    "id": "restore-strategy",
+    "op": "update"
+  },
+  "published": true,
+  "selected": true,
+  "selection": {
+    "candidate_id": "restore-evolve:harness_evolve:1:candidate",
+    "evaluation": {
+      "evaluator": "harness_episode_pairs",
+      "evaluator_version": "1",
+      "metadata": {},
+      "metrics": {
+        "candidate_failures": [],
+        "candidate_score": 0.9761,
+        "candidate_scores": [
+          0.0,
+          0.3942,
+          0.5819
+        ],
+        "current_failures": [],
+        "current_score": 1.178,
+        "current_scores": [
+          0.4158,
+          0.2165,
+          0.5457
+        ],
+        "episode_failures": 0
+      }
+    },
+    "metrics": {
+      "losses": 1,
+      "ties": 0,
+      "wins": 2
+    },
+    "outcome": "select",
+    "policy": "score_comparison",
+    "policy_version": "1",
+    "reason": "candidate won 2 task pairings and lost 1"
+  },
+  "steps": 1,
+  "ties": 0,
+  "traces": 1,
+  "wins": 2
+}
+evolved skill files:
+--- pi-agent/skills/restore-strategy/SKILL.md ---
+# restore-strategy
+
+Only these commands may touch images: `restore diagnose IN` and `restore run TOOL IN OUT`. Never use Python/PIL/numpy/ImageMagick or any image viewer/editor/copy command. Never open, copy, or inspect the clean original, the task manifest, or the degradation code. Never write or predict a PSNR/score. The judge uses the last `restore run` output, so make the last restored image be the final candidate and name its exact output path on the final line.
+
+## Read the diagnosis
+
+The diagnose JSON gives four estimates in 0..1: haze, low_light, noise, blur. Use approximate bands:
+
+- less than 0.20: negligible
+- 0.20 to 0.40: mild
+- 0.40 to 0.60: strong
+- greater than 0.60: severe
+
+Do not try to drive every value to zero. Stop when all remaining values are roughly below 0.25, or when the next operation would address a value below 0.25, or when one more pass of the same tool would risk overprocessing. Run `restore diagnose` on intermediates before deciding the next step.
+
+## Safe order
+
+Apply noise removal before brightening or dehaze; brightening amplifies noise and dehaze can darken. Apply low-light correction before dehaze in mixed dark+hazy cases. Apply dehaze before local contrast enhancement, not after. Use sharpen only last, and only if blur is the remaining defect.
+
+## Low-light + noise
+
+If noise is strong (about 0.4 or higher) and the image also needs lightening:
+
+1. `restore run denoise_bilateral IN p1.png`
+2. `restore run lowlight_gamma p1.png p2.png`
+3. `restore diagnose p2.png`
+
+If the brightening made noise strong again, use one more `denoise_bilateral` pass. If `low_light` is still high after one gamma pass and noise is not high, use `lowlight_clahe` as the second contrast pass; do not stack two gamma passes. Maximum useful bilateral passes is two. Do not use `denoise_median` unless you are sure the noise is salt-and-pepper; with only diagnosis numbers, ordinary noise is better handled by bilateral, because median removes texture and will reduce PSNR.
+
+## Haze + low-light
+
+If both haze and low_light are significant (about 0.3 or higher):
+
+1. Denoise first if noise is also high.
+2. `restore run lowlight_gamma IN p1.png` so the dark image is not dehazed first. Dehazing a dark image first makes it darker.
+3. `restore run dehaze_dcp p1.png p2.png`
+4. `restore diagnose p2.png`
+
+If `dehaze_dcp` made the image dark again, repair it once with `lowlight_gamma`; if only local contrast is flat and noise is low, use `lowlight_clahe` instead. If haze is still strong after the image is brightened, one second `dehaze_dcp` pass is allowed, but no third dehaze pass. Over-dehazing causes color distortion and lowers PSNR.
+
+## Haze only
+
+If haze is significant but low_light is low:
+
+1. `restore run dehaze_dcp IN p1.png`
+2. `restore diagnose p1.png`
+3. If dehaze darkened it, `lowlight_gamma p1.png p2.png`. If haze remains strong and the image is not dark, one second `dehaze_dcp` can be run, then re-diagnose.
+
+## Blur and sharpening
+
+Do not sharpen after dehaze or lighten unless blur is the dominant remaining problem. Use `sharpen_unsharp` once and only at the end when blur is about 0.4 or higher, and noise, low_light, and haze are all below about 0.25. Sharpening amplifies noise and halo artifacts; over-sharpening is a common way to fail PSNR. If noise is not low, skip sharpening entirely.
+
+## Finishing
+
+Keep intermediate names simple: `p1.png`, `p2.png`, ..., and use `final.png` for the final candidate in the current directory. Do not overwrite the input.
+
+After the last operation, run `restore diagnose final.png` only if it helps confirm no target value is still strong. If an operation made the image better in one value but much worse in another, stop and do not compensate with extra sharpening/denoising.
+
+The very last line of your reply must be the exact path of the final image, alone on the last line. If your final `restore run` command was `restore run TOOL p2.png final.png`, the last line is exactly `final.png`. If you use `./final.png` in the command, repeat `./final.png` on the last line.
+
