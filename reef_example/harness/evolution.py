@@ -205,16 +205,30 @@ def parse_score(text: str | None) -> float | None:
 
 
 def _episode_id(result) -> str | None:
-    """The RESTORE_EPISODE_ID the wrapper derived, recovered from the episode
-    root name that shows up in the trajectory's tool output."""
+    """The RESTORE_EPISODE_ID every `bin/restore` call echoes, taken from the
+    trajectory.
+
+    All markers in one episode must agree - the wrapper derives the id from the
+    episode root, so a disagreement means the derivation fell back mid-episode
+    and the trace is split across ids. That is not a detail: taking the *first*
+    marker used to lock the judge onto a phantom id whenever the agent's first
+    command ran from an odd cwd, and it then found no `restore run` under it and
+    scored a working episode 0.0 (three times on 2026-09-03). Raise instead of
+    guessing which id is the real one.
+    """
     import re as _re
 
+    seen: list[str] = []
     for message in _messages(result.trajectory):
-        text = _text_parts(message.get("content"))
-        match = _re.search(r"reef-episode-([A-Za-z0-9_-]+)", text or "")
-        if match:
-            return match.group(1)
-    return None
+        for match in _re.finditer(r"reef-episode-([A-Za-z0-9_-]+)", _text_parts(message.get("content")) or ""):
+            if match.group(1) not in seen:
+                seen.append(match.group(1))
+    if len(seen) > 1:
+        raise RuntimeError(
+            f"episode markers disagree: {seen}. bin/restore should derive one id per episode; "
+            f"a split means its derivation fell back part-way and the trace cannot be joined."
+        )
+    return seen[0] if seen else None
 
 
 def _final_output_sha(episode_id: str) -> str | None:
