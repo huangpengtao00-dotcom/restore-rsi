@@ -21,4 +21,12 @@ if [ -z "$RESTORE_EPISODE_ID" ]; then
     esac
     export RESTORE_EPISODE_ID
 fi
+# Announce the id on every call, on stdout, so it is guaranteed to be in the
+# trajectory the judge sees. The judge links `result` to its trace lines through
+# this string; it used to dig the episode root out of whatever tool output
+# happened to mention an absolute path, and an agent that stuck to relative
+# paths left it with nothing - `evaluate: no restore run output found
+# (episode=None)` scored a possibly-fine episode 0.0, indistinguishable from a
+# restoration that achieved nothing (2026-09-03).
+echo "reef-episode-$RESTORE_EPISODE_ID"
 exec "$HERE/../.venv/bin/restore" "$@"

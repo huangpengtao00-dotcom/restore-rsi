@@ -159,10 +159,28 @@ def evaluate(task: str, result) -> float:
         log.warning("evaluate[%s]: shortcut -> 0.0: %s", tid, shortcut)
         return 0.0
     episode = _episode_id(result)
-    output_sha = _final_output_sha(episode) if episode else None
+    if episode is None:
+        # "I could not measure this episode" is not "this episode restored
+        # nothing", and reporting the second for the first is a silent
+        # downgrade: reef coerces the return to float, so a 0.0 here enters the
+        # gate as a real score and decides wins and losses. Both `select`
+        # verdicts on 2026-09-03 turned on a task that scored exactly 0.0, and
+        # at least one of those was this failure rather than a bad chain.
+        # bin/restore now echoes the id on every call, so a missing id means
+        # the episode ran no `restore` command at all - which the next branch
+        # scores 0.0 correctly - or the wiring is broken, which must be loud.
+        raise RuntimeError(
+            f"evaluate[{tid}]: no reef-episode marker in the trajectory. bin/restore echoes it on every "
+            f"call, so either no `restore` command ran (then there is nothing to score and the trace is "
+            f"empty for this episode) or the wrapper is not on PATH. exit={result.exit_code} "
+            f"messages={len(list(_messages(result.trajectory)))}"
+        )
+    output_sha = _final_output_sha(episode)
     image = _cached_image(output_sha) if output_sha else None
     if image is None:
-        log.warning("evaluate[%s]: no `restore run` output found (episode=%s sha=%s) -> 0.0", tid, episode, output_sha)
+        # Reached only when the episode really produced no successful
+        # `restore run` - a legitimate 0.0 under the gain-over-input scale.
+        log.warning("evaluate[%s]: episode %s ran no successful `restore run` -> 0.0", tid, episode)
         return 0.0
     score = _score_output(tid, image)
     log.info(
