@@ -1,0 +1,9 @@
+{
+  "episode": "judge-low_light_noise_00",
+  "input_sha": "51c7a39fd052b2e0",
+  "output_sha": "4759c3f0e45405b2",
+  "mode": "reference",
+  "psnr": 17.212,
+  "score": 0.1106,
+  "reliability": "high"
+}

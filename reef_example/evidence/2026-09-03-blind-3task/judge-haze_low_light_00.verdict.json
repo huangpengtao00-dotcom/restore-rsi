@@ -1,0 +1,9 @@
+{
+  "episode": "judge-haze_low_light_00",
+  "input_sha": "7c8d3f7feedf7130",
+  "output_sha": "c811c342b55e2222",
+  "mode": "reference",
+  "psnr": 17.068,
+  "score": 0.1034,
+  "reliability": "high"
+}

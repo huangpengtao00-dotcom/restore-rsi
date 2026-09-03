@@ -18,9 +18,13 @@ reef_example/
                    built from ../tasks/data/manifest.json (+ work/tasks.json, task_refs.json)
   harness/evolution.py
                    propose: served model writes one SKILL.md over the failures
-                   evaluate: REEF_SCORE parsed from the `restore score` tool result;
-                   shortcut episodes (reference/manifest/own numpy) -> 0.0
-  run.py           record -> execute plan + score -> report -> pull
+                   evaluate: the judge scores the episode's final image itself -
+                   last successful `restore run` output_sha from the trace, pulled
+                   out of the content-addressed cache; nothing the episode says is
+                   trusted. Shortcuts (reference/manifest/own numpy) -> 0.0
+  tasks/oracle_chains.py (repo root)
+                   exhaustive best-chain search: the ceiling a score is read against
+  run.py           relay (model names a command -> it runs -> stdout back) -> score -> report -> pull
   run.sh           env (key, no proxy, PATH), materialize, reef serve, run.py
   bin/restore      wrapper pi sees inside an episode: pins RESTORE_* to work/,
                    derives RESTORE_EPISODE_ID from the episode root name
@@ -47,17 +51,20 @@ with `litellm/DeepSeek-V4-Flash`; both live in `serve.yaml`, the key never does.
 
 ## What one run does
 
-1. `materialize.py` builds one prompt per task id: `[task_id]`, input path,
-   the `restore` commands, the tool catalog from `toolbox/registry.yaml`, the
-   reference path for `--ref`, the reply format (`REEF_SCORE=...` alone on the
-   last line) and the rules (only `restore run` touches images; never open the
-   reference / manifest / degradation code).
-2. `run.py` sends each prompt once through reef inference (plain chat, no
-   shell). The model can only answer with the `restore run ...` chain it would
-   issue; `run.py` executes that chain for real through `bin/restore`, scores
-   it with `restore score --ref`, and reports the real `REEF_SCORE` against the
-   receipt. Reports with score <= `data.max_score` (0.5) batch; `batch_size: 1`
-   makes every failing report one gated evolve step.
+1. `materialize.py` builds one prompt per task id: `[task_id]`, the input path,
+   the two commands the episode has (`restore diagnose`, `restore run`), the
+   tool catalog from `toolbox/registry.yaml`, and the reply format (the final
+   image's path alone on the last line). **Blind by construction**: no reference
+   path, no score command - a judge holds both (see 参考答案泄露, below).
+2. `run.py` relays each prompt through reef inference: the model names one
+   command, `run.py` runs it through `bin/restore` and feeds the real stdout
+   back as the next turn, up to `RECORD_MAX_TURNS` (6). The chain starts at the
+   task input and each output feeds the next, so the paths the model invents do
+   not matter. When the relay ends, `run.py` scores the final image with
+   `restore score --ref` **on its own side** and reports that against turn 1's
+   receipt (exactly one reference - see 坑 5). Reports with score <=
+   `data.max_score` (0.5) batch; `batch_size: 1` makes every failing report one
+   gated evolve step.
 3. Per step, reef calls `harness.evolution:propose` (the failing prompts +
    scores + current skills go to the served model, which returns one skill
    JSON), renders current and candidate trees into throwaway pi episodes (one
@@ -89,12 +96,16 @@ also means episodes never see the proxy variables.
 
 - **Local proxy**: without the unset, every call to aigw fails or hangs; the
   first symptom is all episodes scoring 0 and every gate tying.
-- **Reward hacking is real**: the first manual pi episode (2026-09-02) found
-  `tasks/data/manifest.json`, read the exact degradation parameters, inverted
-  them in numpy and scored 1.0 through the official scorer. `evaluate` now
-  zeroes any episode whose tool calls touch `clean_*.png`, `manifest.json`, the
-  degradation code, or python/PIL/numpy/imagemagick. The score is also taken
-  from the `restore score` *tool result*, never from the agent's claim alone.
+- **Reward hacking is real, twice over**: the first manual pi episode
+  (2026-09-02) found `tasks/data/manifest.json`, read the exact degradation
+  parameters, inverted them in numpy and scored 1.0 through the official
+  scorer. `evaluate` zeroes any episode whose tool calls touch `clean_*.png`,
+  `--ref`, `manifest.json`, the degradation code, or python/PIL/numpy/
+  imagemagick. That was not enough: while the reference path and `restore
+  score` were still *in the prompt*, the agent used them legitimately and hill-
+  climbed on ground truth instead of restoring. Blocking the sanctioned path is
+  what the blind protocol does; the shortcut patterns only catch the unsanctioned
+  one.
 - **Package shadowing**: the repo root used to hold an empty `harness/`; with
   the editable install it shadowed `reef_example/harness`. Removed; do not
   recreate a root-level `harness` package.
@@ -142,10 +153,37 @@ See the "Run log" section below (filled from an actual run).
 | 候选 | 0.290 / 0.133 / 0.000(合 0.423) | 0.199 / 0.000 / 0.024(合 0.222) |
 | 门 | 0 胜 3 负 reject | 0 胜 3 负 reject |
 
-**约一半的分数是刷出来的**(现版 0.858 → 0.394)。两轮门都正确拒绝了候选。
-模型提议的 skill 文本(`work/results/proposals.jsonl`)读起来很合理——分严重度档、"噪声高时先降噪再提亮"、禁止自造分数——但盲评三题全线更低:合理的经验 ≠ 有用的经验,只有独立的门能分辨。
+当时记的结论是"约一半的分数是刷出来的"(0.858 → 0.394)。**后来量了噪声地板,这个结论撤回**:盲评那一列同配置重掷的极差就有 0.05–0.24(见上面的噪声地板一节),单看一对没有推断力。这张表保留为背景;站得住的是天花板越界那条。
+
+模型提议的 skill 文本(`work/results/proposals.jsonl`)读起来很合理——分严重度档、"噪声高时先降噪再提亮"、禁止自造分数——盲评三题全线更低。同理,这只能当现象记,不能当"合理≠有用"的证据:效应比抖动小。
 
 证据:`work/gate_blind.json`、`work/results/proposals.jsonl`、`work/agent-record/*.commits.jsonl`。
+
+### 2026-09-03 · 噪声地板:同配置重掷的抖动 ≈ 闸门在判的差
+中继版重跑一整轮时,因为前两轮闸门都拒绝、没有发布,**这一轮的 current 树和上一轮的 current 树是同一棵(种子 skill)**——于是两轮的 current 分数就是同一配置的两次重掷。
+
+中继版重跑一整轮时,因为**每一步闸门都拒绝、什么都没发布**,每个 evolve step 里的 current 树始终是同一棵种子树——于是那些 current 分数就是同一配置的反复重掷,噪声地板不用另设实验就出来了(4 次:盲评首轮 + 3 个 evolve step):
+
+| 任务 | 掷1 | 掷2 | 掷3 | 掷4 | 极差 | 天花板(≤5) | 噪声/可达区间 |
+|---|---|---|---|---|---|---|---|
+| haze_low_light_00 | 0.2374 | 0.1985 | 0.0000 | 0.1034 | **0.2374** | 0.3696 | **64%** |
+| haze_low_light_01 | 0.0501 | 0.0133 | 0.0000 | 0.0123 | **0.0501** | 0.1775 | **28%** |
+| low_light_noise_00 | 0.1069 | 0.0000 | 0.0558 | 0.1106 | **0.1106** | 0.1672 | **66%** |
+
+三步闸门:
+
+| step | current | candidate | wins/losses/ties | outcome |
+|---|---|---|---|---|
+| 1 | 0.1985 / 0.0133 / 0.0 = 0.2118 | 0.1435 / 0.0709 / 0.0 = **0.2144** | 1 / 1 / 1 | reject |
+| 2 | 0.0 / 0.0 / 0.0558 = 0.0558 | 0.0 / 0.0459 / 0.0 = 0.0459 | 1 / 1 / 1 | reject |
+| 3 | 0.1034 / 0.0123 / 0.1106 = 0.2263 | 0.1366 / 0.0 / 0.0146 = 0.1512 | 1 / 2 / 0 | reject |
+
+候选-现版之差非零项**平均 0.051、最大 0.096**,对上面 0.05–0.24 的抖动——**信号比噪声小一个身位**。step 1 的候选总分还更高(`score_comparison` 按逐题胜负算,不按总分)。
+
+结论(方法学,不限于这个玩具):**闸门在量噪声地板之前不具备判别力**。三次 reject 结果大概是对的,但理由和抛硬币没区别。定阈值的做法很直接——同配置重掷 N 次取抖动上界,候选只有超过它才算赢;或把多次重掷的均值当分数。
+每题 4 个样本,量级估计而非方差估计;但 0.05 效应 vs 0.24 抖动的量级差,4 个样本已足以下这个判断。
+
+证据:`evidence/2026-09-03-blind-3task/`(commits / proposals / trace / noise-floor.json / console.log)。
 
 ### 2026-09-03 · 天花板(穷举 oracle):泄题版的分数根本达不到
 分数只有对着上界才读得懂。工具是确定性的、只有 6 个,所以最优链可以直接穷举——`tasks/oracle_chains.py` 深度优先走遍所有长度 ≤ N 的序列,用**和闸门同一个打分公式**(原样抄自 `cli.py`,不自己重推)算每个前缀。

@@ -1,0 +1,87 @@
+{
+  "rerolls_current": [
+    [
+      0.2374,
+      0.0501,
+      0.1069
+    ],
+    [
+      0.1985,
+      0.0133,
+      0.0
+    ],
+    [
+      0.0,
+      0.0,
+      0.0558
+    ],
+    [
+      0.1034,
+      0.0123,
+      0.1106
+    ]
+  ],
+  "ceiling_depth5": [
+    0.3696,
+    0.1775,
+    0.1672
+  ],
+  "tasks": [
+    "haze_low_light_00",
+    "haze_low_light_01",
+    "low_light_noise_00"
+  ],
+  "gates": [
+    {
+      "outcome": "reject",
+      "reason": "candidate did not exceed its 1 losses with 1 wins",
+      "losses": 1,
+      "ties": 1,
+      "wins": 1,
+      "current_scores": [
+        0.1985,
+        0.0133,
+        0.0
+      ],
+      "candidate_scores": [
+        0.1435,
+        0.0709,
+        0.0
+      ]
+    },
+    {
+      "outcome": "reject",
+      "reason": "candidate did not exceed its 1 losses with 1 wins",
+      "losses": 1,
+      "ties": 1,
+      "wins": 1,
+      "current_scores": [
+        0.0,
+        0.0,
+        0.0558
+      ],
+      "candidate_scores": [
+        0.0,
+        0.0459,
+        0.0
+      ]
+    },
+    {
+      "outcome": "reject",
+      "reason": "candidate did not exceed its 2 losses with 1 wins",
+      "losses": 2,
+      "ties": 0,
+      "wins": 1,
+      "current_scores": [
+        0.1034,
+        0.0123,
+        0.1106
+      ],
+      "candidate_scores": [
+        0.1366,
+        0.0,
+        0.0146
+      ]
+    }
+  ]
+}

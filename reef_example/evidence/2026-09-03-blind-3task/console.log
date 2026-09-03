@@ -1,0 +1,33 @@
+materialized 3 task(s) -> /Users/opall/research/restore-rsi/reef_example/work/recipes/harness_evolve.yaml, /Users/opall/research/restore-rsi/reef_example/work/tasks.json
+== record+report: 3 task(s), scenario restore-evolve
+task 1 haze_low_light_00: relaying (up to 6 turns)
+  turn 1: 1 command(s) ['diagnose'] reply 'restore diagnose /Users/opall/research/restore-rsi/tasks/data/haze_low_light_00/input_000.png'
+  turn 2: 1 command(s) ['run'] reply 'restore run lowlight_gamma /Users/opall/research/restore-rsi/tasks/data/haze_low_light_00/input_000.png step1_gamma.png'
+  turn 3: 1 command(s) ['run'] reply 'restore run lowlight_clahe /var/folders/fl/s0ctmflj601_6c_4j1nqcm7h0000gp/T/restore-record-haze_low_light_00-2gl5kcx0/step1_lowlight_gamma.png step2_clahe.png'
+  turn 4: 1 command(s) ['run'] reply 'restore run sharpen_unsharp /var/folders/fl/s0ctmflj601_6c_4j1nqcm7h0000gp/T/restore-record-haze_low_light_00-2gl5kcx0/step2_lowlight_clahe.png step3_sharp.png'
+  turn 5: 0 command(s) [] reply 'Final image:\n/var/folders/fl/s0ctmflj601_6c_4j1nqcm7h0000gp/T/restore-record-haze_low_light_00-2gl5kcx0/step3_sharpen_unsharp.png'
+  turn 6: 0 command(s) [] reply '/var/folders/fl/s0ctmflj601_6c_4j1nqcm7h0000gp/T/restore-record-haze_low_light_00-2gl5kcx0/step3_sharpen_unsharp.png'
+task 1 haze_low_light_00: score 0.2737 (turns=6 chain=lowlight_gamma>lowlight_clahe>sharpen_unsharp) receipts ['1307699cde83401193103e777ef2867b', '0e72af79555044679a21ea7c6eb87272', '8f8d3f71a57345fc91aaff08623de145', '887c639b4c644e00b4fcd7c4769e6044', '83ecbfedb11840febb8fbbc9f7396f41', 'aa467246cb844d76be26c0f712a6c3ce'] 145s
+task 2 haze_low_light_01: relaying (up to 6 turns)
+  turn 1: 1 command(s) ['diagnose'] reply 'restore diagnose /Users/opall/research/restore-rsi/tasks/data/haze_low_light_01/input_000.png'
+  turn 2: 0 command(s) [] reply 'pwd'
+  turn 3: 1 command(s) ['run'] reply 'restore run sharpen_unsharp /Users/opall/research/restore-rsi/tasks/data/haze_low_light_01/input_000.png out1.png'
+  turn 4: 1 command(s) ['diagnose'] reply 'restore diagnose /var/folders/fl/s0ctmflj601_6c_4j1nqcm7h0000gp/T/restore-record-haze_low_light_01-2ltk182u/step1_sharpen_unsharp.png'
+  turn 5: 1 command(s) ['run'] reply 'restore run sharpen_unsharp /var/folders/fl/s0ctmflj601_6c_4j1nqcm7h0000gp/T/restore-record-haze_low_light_01-2ltk182u/step1_sharpen_unsharp.png step2_sharpen_u'
+  turn 6: 1 command(s) ['diagnose'] reply 'restore diagnose /var/folders/fl/s0ctmflj601_6c_4j1nqcm7h0000gp/T/restore-record-haze_low_light_01-2ltk182u/step2_sharpen_unsharp.png'
+task 2 haze_low_light_01: score 0.0000 (turns=6 chain=sharpen_unsharp>sharpen_unsharp) receipts ['d0194b62ff5e44d1a016ff2fe0b11286', '096b7c0939a94cdda96466e7b8f96e1b', '1156360a12664749a15b09802e500c76', 'd2ed63b9794444288f64e3d253efde97', '04b72174b53c4cc68492856b37a0b182', 'c06c9cde4a0b4008b4f7484c61c86cb0'] 67s
+task 3 low_light_noise_00: relaying (up to 6 turns)
+  turn 1: 1 command(s) ['diagnose'] reply 'restore diagnose /Users/opall/research/restore-rsi/tasks/data/low_light_noise_00/input_000.png'
+  turn 2: 1 command(s) ['run'] reply 'restore run denoise_bilateral /Users/opall/research/restore-rsi/tasks/data/low_light_noise_00/input_000.png out_denoise.png'
+  turn 3: 1 command(s) ['run'] reply 'restore run lowlight_gamma /var/folders/fl/s0ctmflj601_6c_4j1nqcm7h0000gp/T/restore-record-low_light_noise_00-kvx7tivf/step1_denoise_bilateral.png step2_gamma.p'
+  turn 4: 1 command(s) ['diagnose'] reply 'restore diagnose /var/folders/fl/s0ctmflj601_6c_4j1nqcm7h0000gp/T/restore-record-low_light_noise_00-kvx7tivf/step2_lowlight_gamma.png'
+  turn 5: 1 command(s) ['run'] reply 'restore run denoise_bilateral /var/folders/fl/s0ctmflj601_6c_4j1nqcm7h0000gp/T/restore-record-low_light_noise_00-kvx7tivf/step2_lowlight_gamma.png step3_denoise'
+  turn 6: 1 command(s) ['diagnose'] reply 'restore diagnose /var/folders/fl/s0ctmflj601_6c_4j1nqcm7h0000gp/T/restore-record-low_light_noise_00-kvx7tivf/step3_denoise_bilateral.png'
+task 3 low_light_noise_00: score 0.0147 (turns=6 chain=denoise_bilateral>lowlight_gamma>denoise_bilateral) receipts ['3b3d6310515a4db59b4c967f21e8f463', '2b188af4c46d4fb2be538b0eb4022df4', 'ab0cad3998a943428dd995922efec8a4', '1030b185b12a43258fd254e132be9c74', '71d4496925a34506a9096fa7f7d6e3d6', 'c2a7d892db02438f83dc08eeccaaaba3'] 71s
+3 failing report(s) batched; each triggers one gated evolve step (episodes take minutes)
+  status: {"last_drain_at": null, "preload_errors": {}, "scenarios": {"restore-evolve": {"batch_ready": true, "checkpoint_storage": null, "current_runtime_load_id": null, "inference_admission": {"active": 0, "open": true}, "last_committed_step": {"metrics": {"candidate_score": 0.21439999999999998, "current_sc
+  service busy (TimeoutError); evolve step still running
+  status: {"last_drain_at": null, "preload_errors": {}, "scenarios": {"restore-evolve": {"batch_ready": true, "checkpoint_storage": null, "current_runtime_load_id": null, "inference_admission": {"active": 0, "open": true}, "last_committed_step": {"metrics": {"candidate_score": 0.0459, "current_score": 0.0558,
+  service busy (TimeoutError); evolve step still running
+  status: {"last_drain_at": null, "preload_errors": {}, "scenarios": {"restore-evolve": {"batch_ready": false, "checkpoint_storage": null, "current_runtime_load_id": null, "inference_admission": {"active": 0, "open": true}, "last_committed_step": {"metrics": {"candidate_score": 0.1512, "current_score": 0.2263
+./run.sh: line 63: 15193 Terminated: 15          python3 run.py "$@"
