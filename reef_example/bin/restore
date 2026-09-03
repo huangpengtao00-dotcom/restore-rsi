@@ -14,11 +14,30 @@ export RESTORE_RESULTS_DIR="${RESTORE_RESULTS_DIR:-$HERE/work/results}"
 export RESTORE_CACHE_DIR="${RESTORE_CACHE_DIR:-$HERE/work/cache}"
 export RESTORE_TRACE="${RESTORE_TRACE:-$RESTORE_RESULTS_DIR/trace.jsonl}"
 if [ -z "$RESTORE_EPISODE_ID" ]; then
-    parent="$(basename "$(dirname "$PWD")")"
-    case "$parent" in
-        reef-episode-*) RESTORE_EPISODE_ID="${parent#reef-episode-}" ;;
-        *) RESTORE_EPISODE_ID="adhoc-$(date +%s)-$$" ;;
-    esac
+    # The id must be identical for every call inside one episode - it is the key
+    # the judge joins `result` to the trace on. Deriving it from the *parent* of
+    # cwd broke as soon as the agent cd'd anywhere: the fallback then fired, and
+    # because it was `adhoc-$(date +%s)-$$`, every single invocation got a
+    # different id. The trace scattered, the judge found no successful run under
+    # the one id it saw, and scored a working episode 0.0. Every 0.0 seen on
+    # 2026-09-03 is explainable by this.
+    #
+    # So: look for the reef-episode-<id> component anywhere in cwd, then in the
+    # episode paths pi itself is given (independent of cwd), and only then fall
+    # back - to a value derived from cwd, so repeated calls still share one id.
+    for candidate in "$PWD" "$PI_CODING_AGENT_DIR" "$PI_CODING_AGENT_SESSION_DIR"; do
+        [ -n "$candidate" ] || continue
+        case "$candidate" in
+            *reef-episode-*)
+                trimmed="${candidate#*reef-episode-}"
+                RESTORE_EPISODE_ID="${trimmed%%/*}"
+                break
+                ;;
+        esac
+    done
+    if [ -z "$RESTORE_EPISODE_ID" ]; then
+        RESTORE_EPISODE_ID="adhoc-$(printf '%s' "$PWD" | shasum | cut -c1-8)"
+    fi
     export RESTORE_EPISODE_ID
 fi
 # Announce the id on every call, on stdout, so it is guaranteed to be in the
