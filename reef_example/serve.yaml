@@ -53,6 +53,13 @@ restore:
 
 evolution:
   adapter: pi
+  # 闸门判据。reef 自带的 `score_comparison` 是 `wins > losses`,在这套系统上
+  # **假阳性率 50%**,与重复次数无关:候选与现版无差别时每次逐题比较就是抛硬币。
+  # 实测代价是每题评估 1 次时连续两步以 2 胜 1 负发布,而事后同一棵树的重复评估
+  # 显示那些差(0.01–0.19)远小于噪声(0.15–0.65)。
+  # 换成符号检验(harness/selection.py),alpha=0.10:n=9 时需要 ≥7 胜。
+  # 不是把闸门调严,是让「发布」第一次有已知的错误率。
+  selection: harness.selection:selector
   # The method package beside this file (harness/): reef.service resolves
   # these dotted references because run.sh starts it with this cwd.
   propose: harness.evolution:propose

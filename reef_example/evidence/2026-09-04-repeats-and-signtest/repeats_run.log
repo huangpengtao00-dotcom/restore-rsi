@@ -1,0 +1,18 @@
+  data.max_score overridden to 1.0 (RESTORE_MAX_SCORE)
+materialized 9 entries (3 tasks x 3 repeats) -> /Users/opall/research/restore-rsi/reef_example/work/recipes/harness_evolve.yaml, /Users/opall/research/restore-rsi/reef_example/work/tasks.json
+  t32647412 = haze_low_light_00
+  t9c652a0a = haze_low_light_01
+  t37cbd87d = low_light_noise_00
+== record+report: 1 task(s), scenario restore-evolve
+task 1 t32647412: relaying (up to 6 turns)
+  turn 1: 1 command(s) ['diagnose'] reply 'restore diagnose /Users/opall/research/restore-rsi/reef_example/work/inputs/t32647412.png'
+  turn 2: 1 command(s) ['run'] reply 'restore run dehaze_dcp /Users/opall/research/restore-rsi/reef_example/work/inputs/t32647412.png /Users/opall/research/restore-rsi/reef_example/work/t32647412_de'
+  turn 3: 1 command(s) ['run'] reply 'restore run lowlight_gamma /var/folders/fl/s0ctmflj601_6c_4j1nqcm7h0000gp/T/restore-record-t32647412-558qchm0/step1_dehaze_dcp.png /Users/opall/research/restore'
+  turn 4: 1 command(s) ['diagnose'] reply 'restore diagnose /var/folders/fl/s0ctmflj601_6c_4j1nqcm7h0000gp/T/restore-record-t32647412-558qchm0/step2_lowlight_gamma.png'
+  turn 5: 0 command(s) [] reply '/var/folders/fl/s0ctmflj601_6c_4j1nqcm7h0000gp/T/restore-record-t32647412-558qchm0/step2_lowlight_gamma.png'
+  turn 6: 0 command(s) [] reply '/var/folders/fl/s0ctmflj601_6c_4j1nqcm7h0000gp/T/restore-record-t32647412-558qchm0/step2_lowlight_gamma.png'
+task 1 t32647412: score 0.4158 (turns=6 chain=dehaze_dcp>lowlight_gamma) receipts ['dec1476f8bdb42df9a392a122eda21c7', 'c8f25da9a5f24e0e9de9ed6c3f5c51fa', 'd36ddc2881e14defa9134b00ddcf6119', '6fcdab7773464fa6b28aded2e0722b1d', 'dcd634a8481a40be96a2a22a06ed988d', '8f82cbcd0efe4f5798275023b3ae2c5f'] 317s
+1 failing report(s) batched; each triggers one gated evolve step (episodes take minutes)
+  service busy (TimeoutError); evolve step still running
+  service busy (TimeoutError); evolve step still running
+  status: {"last_drain_at": null, "preload_errors": {}, "scenarios": {"restore-evolve": {"batch_ready": false, "checkpoint_storage": null, "current_runtime_load_id": null, "inference_admission": {"active": 0, "open": true}, "last_committed_step": {"metrics": {"candidate_score": 2.9195, "current_score": 2.9557
