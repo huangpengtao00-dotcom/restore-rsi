@@ -94,13 +94,19 @@ def main() -> None:
     # The episode only ever sees work/inputs/<opaque>.png, so neither the id nor
     # the path names the degradations. task_refs.json keys on the same opaque id
     # (the judge reads it); task_map.json is the reverse map, for analysis only.
+    repeats = int(restore.get("repeats", 1))
     tasks, refs, mapping = [], {}, {}
     for task_id in restore["task_ids"]:
         frame = by_id[task_id]["frames"][0]
         prompt_id = opaque_id(task_id)
         episode_input = inputs / f"{prompt_id}.png"
         shutil.copyfile(frame["input"], episode_input)
-        tasks.append(task_prompt(catalog, prompt_id, episode_input))
+        prompt = task_prompt(catalog, prompt_id, episode_input)
+        # The same prompt, `repeats` times. reef runs one episode per entry per
+        # side, so a task's repeats are independent samples of the same
+        # configuration - the gate votes over them, and their disagreement is
+        # the step's own reliability read-out.
+        tasks.extend([prompt] * repeats)
         refs[prompt_id] = {"input": str(episode_input), "reference": frame["reference"]}
         mapping[prompt_id] = task_id
 
@@ -115,10 +121,16 @@ def main() -> None:
         print(f"  data.max_score overridden to {override} (RESTORE_MAX_SCORE)")
     (work / "recipes").mkdir(parents=True, exist_ok=True)
     (work / "recipes" / "harness_evolve.yaml").write_text(yaml.safe_dump(recipe, sort_keys=False, allow_unicode=True))
-    (work / "tasks.json").write_text(json.dumps(tasks, indent=2, ensure_ascii=False) + "\n")
+    # Two lists, deliberately different. `evolution.tasks` (in the recipe) carries
+    # the repeats, because that is the evaluation. run.py's record pass wants each
+    # task once - it is generating failing traffic to batch on, not measuring - so
+    # tasks.json stays unique. Feeding it the repeated list would fire `repeats`
+    # times as many evolve steps for no added information.
+    unique = tasks[:: max(1, repeats)]
+    (work / "tasks.json").write_text(json.dumps(unique, indent=2, ensure_ascii=False) + "\n")
     (work / "task_refs.json").write_text(json.dumps(refs, indent=2) + "\n")
     (work / "task_map.json").write_text(json.dumps(mapping, indent=2) + "\n")
-    print(f"materialized {len(tasks)} task(s) -> {work / 'recipes' / 'harness_evolve.yaml'}, {work / 'tasks.json'}")
+    print(f"materialized {len(tasks)} entries ({len(mapping)} tasks x {repeats} repeats) -> {work / 'recipes' / 'harness_evolve.yaml'}, {work / 'tasks.json'}")
     for prompt_id, task_id in mapping.items():
         print(f"  {prompt_id} = {task_id}")
 

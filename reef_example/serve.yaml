@@ -31,6 +31,21 @@ restore:
   # Note the ceiling is per *step budget* and keeps rising with chain length, so
   # it bounds only a policy under the same budget - never quote it as "the
   # toolbox's ceiling" (README).
+  # Each task is evaluated this many times per side, as `repeats` identical
+  # entries in evolution.tasks. The gate then decides on 3 x repeats per-task
+  # comparisons instead of 3, so the one destructive outlier cannot carry a
+  # verdict on its own - and the disagreement *between* a task's repeats is this
+  # step's own reliability read-out, instead of something a separate experiment
+  # has to go and measure afterwards.
+  #
+  # Why repeats and not a wider tolerance: the outcome is bimodal, not jittery.
+  # One unchanged tree scores 0.2165 four times and 0.0 once, because the policy
+  # sometimes appends one step past the good chain and destroys the gain
+  # (dehaze>gamma = 0.2165, dehaze>gamma>clahe = 0.0000). A majority over
+  # repeats is the right estimator for that shape; a mean is not.
+  #
+  # Cost: 3 x the episodes per step (18 instead of 6), ~2-3x the wall clock.
+  repeats: 3
   task_ids:
     - haze_low_light_00
     - haze_low_light_01
