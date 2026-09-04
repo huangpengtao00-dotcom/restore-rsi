@@ -1,0 +1,90 @@
+{
+  "question": "盲策略靠什么信号知道该收手",
+  "decision_points": 3096,
+  "improve_rate": 0.3598,
+  "signal_auc": {
+    "severity_sum(before)": 0.482,
+    "depth": 0.4872,
+    "drift_from_input(before)": 0.6082,
+    "severity_sum 下降量": 0.7894,
+    "haze 下降量": 0.4813,
+    "low_light 下降量": 0.6305,
+    "noise 下降量": 0.6044,
+    "blur 下降量": 0.4942,
+    "drift 增量(dB)": 0.4316,
+    "severity_sum(after)": 0.6503
+  },
+  "current_rule_precision": {
+    "tau_0": 0.572,
+    "tau_0.10": 0.653,
+    "tau_0.30": 0.717,
+    "note": "精确率最高只到 72%,且召回掉到 25%"
+  },
+  "greedy_baseline_12tasks": {
+    "haze_00": {
+      "greedy_tau0": 0.0,
+      "perfect_stop": 0.0,
+      "lost": 0.0
+    },
+    "haze_01": {
+      "greedy_tau0": 0.5162,
+      "perfect_stop": 0.5162,
+      "lost": 0.0
+    },
+    "low_light_00": {
+      "greedy_tau0": 0.4096,
+      "perfect_stop": 1.0,
+      "lost": 0.5904
+    },
+    "low_light_01": {
+      "greedy_tau0": 0.673,
+      "perfect_stop": 0.965,
+      "lost": 0.292
+    },
+    "noise_00": {
+      "greedy_tau0": 0.9107,
+      "perfect_stop": 0.9107,
+      "lost": 0.0
+    },
+    "noise_01": {
+      "greedy_tau0": 0.0568,
+      "perfect_stop": 0.8276,
+      "lost": 0.7708
+    },
+    "haze_low_light_00": {
+      "greedy_tau0": 0.6071,
+      "perfect_stop": 0.6071,
+      "lost": 0.0
+    },
+    "haze_low_light_01": {
+      "greedy_tau0": 0.267,
+      "perfect_stop": 0.2672,
+      "lost": 0.0002
+    },
+    "low_light_noise_00": {
+      "greedy_tau0": 0.6489,
+      "perfect_stop": 0.6489,
+      "lost": 0.0
+    },
+    "low_light_noise_01": {
+      "greedy_tau0": 0.7104,
+      "perfect_stop": 0.7104,
+      "lost": 0.0
+    },
+    "haze_noise_00": {
+      "greedy_tau0": 0.2698,
+      "perfect_stop": 0.2698,
+      "lost": 0.0
+    },
+    "haze_noise_01": {
+      "greedy_tau0": 0.5397,
+      "perfect_stop": 0.5397,
+      "lost": 0.0
+    }
+  },
+  "totals": {
+    "greedy": 5.6092,
+    "perfect_stop": 7.2625,
+    "lost_fraction": 0.2276
+  }
+}
