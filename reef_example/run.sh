@@ -10,19 +10,31 @@ mkdir -p work/recipes work/results
 # 1. Environment.
 #    - the venv first on PATH so `python3` (reef.service) and `restore` resolve
 #      there; bin/ before it so pi episodes get the RESTORE_* wrapper
-#    - upstream key from ~/.dsh/.env (AIGW_KEY) -> REEF_UPSTREAM_API_KEY; the
-#      key never enters serve.yaml or the repo
-#    - the local proxy hijacks aigw.meshy.team (known trap: every call 4xx/5xx
-#      or hangs); reef (urllib/aiohttp honour *_proxy) and pi both run from
-#      this shell, so unset all of it here
+#    - upstream endpoint and key come from the environment, or from
+#      ~/.dsh/.env (RESTORE_UPSTREAM_URL / RESTORE_UPSTREAM_KEY); neither ever
+#      enters serve.yaml or the repo. Any OpenAI-compatible endpoint works.
+#    - a local proxy will hijack the upstream host (known trap: every call
+#      4xx/5xx or hangs); reef (urllib/aiohttp honour *_proxy) and pi both run
+#      from this shell, so unset all of it here and pin NO_PROXY to the host
 export PATH="$PWD/bin:$ROOT/.venv/bin:$PATH"
+_from_env_file() {  # $1=key in ~/.dsh/.env
+    [ -f "$HOME/.dsh/.env" ] && grep -E "^$1=" "$HOME/.dsh/.env" | head -1 | cut -d= -f2- | tr -d '"'"'"
+}
 if [ -z "$REEF_UPSTREAM_API_KEY" ]; then
-    REEF_UPSTREAM_API_KEY="$(grep -E '^AIGW_KEY=' "$HOME/.dsh/.env" | head -1 | cut -d= -f2- | tr -d '"'"'")"
+    REEF_UPSTREAM_API_KEY="$(_from_env_file RESTORE_UPSTREAM_KEY)"
     export REEF_UPSTREAM_API_KEY
 fi
-[ -n "$REEF_UPSTREAM_API_KEY" ] || { echo "no REEF_UPSTREAM_API_KEY and no AIGW_KEY in ~/.dsh/.env" >&2; exit 1; }
+if [ -z "$REEF_UPSTREAM_URL" ]; then
+    REEF_UPSTREAM_URL="$(_from_env_file RESTORE_UPSTREAM_URL)"
+    export REEF_UPSTREAM_URL
+fi
+[ -n "$REEF_UPSTREAM_API_KEY" ] || { echo "set REEF_UPSTREAM_API_KEY, or RESTORE_UPSTREAM_KEY= in ~/.dsh/.env" >&2; exit 1; }
+[ -n "$REEF_UPSTREAM_URL" ] || { echo "set REEF_UPSTREAM_URL, or RESTORE_UPSTREAM_URL= in ~/.dsh/.env (any OpenAI-compatible endpoint)" >&2; exit 1; }
 unset HTTP_PROXY HTTPS_PROXY ALL_PROXY http_proxy https_proxy all_proxy
-export NO_PROXY="aigw.meshy.team,127.0.0.1,localhost" no_proxy="$NO_PROXY"
+# Pin NO_PROXY to whatever host the endpoint actually is, so this stays correct
+# for any upstream rather than naming one.
+_upstream_host="$(printf '%s' "$REEF_UPSTREAM_URL" | sed -E 's#^[a-z]+://##; s#/.*##; s#:[0-9]+$##')"
+export NO_PROXY="$_upstream_host,127.0.0.1,localhost" no_proxy="$NO_PROXY"
 export RESTORE_RESULTS_DIR="$PWD/work/results" RESTORE_CACHE_DIR="$PWD/work/cache" RESTORE_TRACE="$PWD/work/results/trace.jsonl"
 
 #    The trace is the only record of what actually ran, and a reset between

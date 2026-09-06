@@ -45,9 +45,12 @@ cd reef_example
 ./run.sh                # the 3 configured tasks
 ```
 
-`run.sh` needs `AIGW_KEY=` in `~/.dsh/.env` (or `REEF_UPSTREAM_API_KEY` already
-exported). The upstream is `https://aigw.meshy.team` (no `/v1`: reef appends it)
-with `litellm/DeepSeek-V4-Flash`; both live in `serve.yaml`, the key never does.
+`run.sh` needs an upstream endpoint and a key, from the environment
+(`REEF_UPSTREAM_URL` / `REEF_UPSTREAM_API_KEY`) or from `~/.dsh/.env`
+(`RESTORE_UPSTREAM_URL=` / `RESTORE_UPSTREAM_KEY=`). Any OpenAI-compatible
+chat-completions endpoint works - give the base URL without `/v1`, reef appends
+it. The model name lives in `serve.yaml` (`litellm/DeepSeek-V4-Flash` here);
+neither the endpoint nor the key is ever written into the repo.
 
 ## What one run does
 
@@ -78,9 +81,10 @@ with `litellm/DeepSeek-V4-Flash`; both live in `serve.yaml`, the key never does.
 
 | variable | set by | purpose |
 |---|---|---|
-| `REEF_UPSTREAM_API_KEY` | run.sh from `~/.dsh/.env` `AIGW_KEY` | interpolated into serve.yaml `reef.upstream_api_key` |
-| `HTTP(S)_PROXY / ALL_PROXY / *_proxy` | run.sh **unsets** | the local proxy (127.0.0.1:7897) hijacks aigw calls; reef's urllib/aiohttp honour them |
-| `NO_PROXY` | run.sh | `aigw.meshy.team,127.0.0.1,localhost` |
+| `REEF_UPSTREAM_URL` | env, or run.sh from `~/.dsh/.env` `RESTORE_UPSTREAM_URL` | interpolated into serve.yaml `reef.upstream_url` |
+| `REEF_UPSTREAM_API_KEY` | env, or run.sh from `~/.dsh/.env` `RESTORE_UPSTREAM_KEY` | interpolated into serve.yaml `reef.upstream_api_key` |
+| `HTTP(S)_PROXY / ALL_PROXY / *_proxy` | run.sh **unsets** | a local proxy hijacks the upstream calls; reef's urllib/aiohttp honour them |
+| `NO_PROXY` | run.sh | the upstream host (derived from `REEF_UPSTREAM_URL`), `127.0.0.1`, `localhost` |
 | `PATH` | run.sh | `bin/` (restore wrapper) then `../.venv/bin` (python3 with reef, restore) |
 | `REEF_RECIPE_CONFIG_DIR` | run.sh | `work/recipes` (where the registry finds `harness_evolve.yaml`) |
 | `RESTORE_RESULTS_DIR / RESTORE_CACHE_DIR / RESTORE_TRACE` | run.sh (run.py's record pass) and `bin/restore` (episodes) | `work/results`, `work/cache`, `work/results/trace.jsonl` |

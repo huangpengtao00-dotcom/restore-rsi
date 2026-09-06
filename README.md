@@ -105,7 +105,7 @@ uv run python tasks/stopping_analysis.py work/stopping.json
 # 穷举天花板:一个分数只有对着上界才读得懂
 uv run python tasks/oracle_chains.py --depth 3
 
-# 完整进化循环(需要 reef 在 ../reef,以及 ~/.dsh/.env 里的 AIGW_KEY)
+# 完整进化循环(需要 reef 在 ../reef,以及一个 OpenAI 兼容端点:REEF_UPSTREAM_URL / REEF_UPSTREAM_API_KEY)
 uv sync --group reef
 cd reef_example && ./run.sh --limit 1
 ```
@@ -138,5 +138,5 @@ scripts/check_skips.py CI 闸门:跳过的测试数必须等于说好的那个�
 
 ## 一起看
 
-- 完整实测报告(含证据表和复现命令):`~/Obsidian/申请/Jarvis学习材料/28-实测报告-复原RSI盲评闸门-20260903.md`
+- 完整实测报告(含证据表、每条结论的"什么会推翻它"、以及全部原始数字):单独一份 markdown,要的话直接找我拿
 - reef 那一侧的接法与五个坑:[`reef_example/README.md`](reef_example/README.md)

@@ -97,9 +97,10 @@ reef:
   token: reef-local
   # OpenAI-compatible upstream WITHOUT the /v1 suffix (reef appends it).
   # Reef proxies recorded traffic here, propose()'s models.served.chat goes
-  # here, and pi episodes are bound here. Key: run.sh exports
-  # REEF_UPSTREAM_API_KEY from ~/.dsh/.env (AIGW_KEY); never in this file.
-  upstream_url: https://aigw.meshy.team
+  # here, and pi episodes are bound here. Both the endpoint and the key come
+  # from the environment (run.sh reads them); neither is ever in this file.
+  # Any OpenAI-compatible chat-completions endpoint works - reef appends /v1.
+  upstream_url: ${REEF_UPSTREAM_URL}
   upstream_api_key: ${REEF_UPSTREAM_API_KEY}
   upstream_model: litellm/DeepSeek-V4-Flash
   agent_record_dir: work/agent-record
