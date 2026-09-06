@@ -319,18 +319,26 @@ def _final_output_sha(episode_id: str) -> str | None:
     return last
 
 
+def _work_dir():
+    """本次配置的状态目录。并行跑多个消融臂时每个臂一份,`RESTORE_WORK` 指定。"""
+    import os
+    from pathlib import Path
+
+    return Path(__file__).resolve().parent.parent / os.environ.get("RESTORE_WORK", "work")
+
+
 def _results_dir():
     import os
     from pathlib import Path
 
-    return Path(os.environ.get("RESTORE_RESULTS_DIR", Path(__file__).resolve().parent.parent / "work" / "results"))
+    return Path(os.environ.get("RESTORE_RESULTS_DIR", _work_dir() / "results"))
 
 
 def _cache_dir():
     import os
     from pathlib import Path
 
-    return Path(os.environ.get("RESTORE_CACHE_DIR", Path(__file__).resolve().parent.parent / "work" / "cache"))
+    return Path(os.environ.get("RESTORE_CACHE_DIR", _work_dir() / "cache"))
 
 
 def _cached_image(output_sha: str):
@@ -354,7 +362,7 @@ def _score_output(tid: str, image_path) -> float:
     import subprocess
     from pathlib import Path
 
-    refs_file = Path(__file__).resolve().parent.parent / "work" / "task_refs.json"
+    refs_file = _work_dir() / "task_refs.json"
     try:
         frame = _json.loads(refs_file.read_text())[tid]
     except (OSError, KeyError, ValueError) as exc:

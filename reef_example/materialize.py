@@ -126,7 +126,7 @@ def main() -> None:
     if missing:
         sys.exit(f"task ids not in manifest: {missing}")
     catalog = tool_catalog()
-    work = HERE / "work"
+    work = HERE / os.environ.get("RESTORE_WORK", "work")
     inputs = work / "inputs"
     inputs.mkdir(parents=True, exist_ok=True)
 

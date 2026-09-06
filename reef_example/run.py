@@ -39,14 +39,17 @@ from harness.evolution import parse_score, task_id
 from harness.scoring import attained
 
 HERE = Path(__file__).resolve().parent
-SERVICE_URL = "http://127.0.0.1:8900"  # the Reef run.sh started
+#: 本次配置的状态目录与端口。同一台机器上并行跑多个消融臂时,每个臂必须有自己的一份 ——
+#: 共用会让 trace、缓存、task_refs 互相覆盖,而那种污染事后完全看不出来。
+WORK = HERE / os.environ.get("RESTORE_WORK", "work")
+SERVICE_URL = f"http://127.0.0.1:{os.environ.get('REEF_PORT', '8900')}"  # the Reef run.sh started
 SCENARIO = os.environ.get("REEF_SCENARIO", "restore-evolve")  # this workload's isolated lane
 TOKEN = "reef-local"  # matches serve.yaml
 MODEL = "litellm/DeepSeek-V4-Flash"  # matches serve.yaml's upstream_model
 PULL_TIMEOUT_S = float(os.environ.get("PULL_TIMEOUT_S", "3600"))
 
-TASKS_FILE = HERE / "work" / "tasks.json"
-REFS_FILE = HERE / "work" / "task_refs.json"
+TASKS_FILE = WORK / "tasks.json"
+REFS_FILE = WORK / "task_refs.json"
 REGISTRY_FILE = HERE.parent / "toolbox" / "registry.yaml"
 RESTORE = HERE / "bin" / "restore"
 
@@ -225,7 +228,7 @@ def main() -> None:
     tasks = json.loads(TASKS_FILE.read_text())[: args.limit]
     refs = json.loads(REFS_FILE.read_text())
     client = ReefClient(SERVICE_URL, token=TOKEN, timeout_s=600.0)
-    log_path = HERE / "work" / "run.log"
+    log_path = WORK / "run.log"
     log_path.parent.mkdir(exist_ok=True)
 
     def log(line: str) -> None:
@@ -298,7 +301,7 @@ def main() -> None:
     log(f"published: artifact {manifest['release_id']} (parent {manifest['parent_release_id']})")
     log("gate metrics (the evolve step that published this artifact):")
     log(json.dumps(manifest["gate"], indent=2, sort_keys=True, default=str))
-    out_dir = HERE / "work" / "evolved_skills"
+    out_dir = WORK / "evolved_skills"
     out_dir.mkdir(exist_ok=True)
     (out_dir / "manifest.json").write_text(json.dumps(manifest, indent=2, default=str))
     log("evolved skill files:")
