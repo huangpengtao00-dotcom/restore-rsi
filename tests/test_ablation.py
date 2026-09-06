@@ -84,8 +84,8 @@ def test_exclude_really_disappears_from_the_gate(monkeypatch):
     """
     from harness.selection import _tally
 
-    wins, losses = _tally((0.9, float("nan"), 0.2), (0.5, 0.5, 0.5))
-    assert (wins, losses) == (1, 1), "NaN 应当既不计胜也不计负"
+    wins, losses, excluded = _tally((0.9, float("nan"), 0.2), (0.5, 0.5, 0.5))
+    assert (wins, losses, excluded) == (1, 1, 1), "NaN 应当既不计胜也不计负,而是被排除并计数"
 
 
 def test_guess_is_reproducible(monkeypatch):

@@ -80,3 +80,43 @@ def test_a_useless_ceiling_is_treated_as_absent(bad):
     reported, note = attained(0.3, {"ceiling": bad})
     assert reported == 0.3
     assert "ceiling=none" in note
+
+
+def test_batch_threshold_is_read_from_the_recipe_not_hardcoded():
+    """run.py 判「失败」用的阈值,必须和 reef 用来 batch 的是同一个数。
+
+    两处各自写一份的后果实测过:阈值调到 0.9 后三题报 0.727/0.783/0.741,reef 那侧
+    全部会 batch,而 run.py 按自己硬编码的 0.5 认为全部通过,打印一句就退出 ——
+    整轮四十分钟白跑,日志还一切正常。
+    """
+    src = (ROOT / "reef_example" / "run.py").read_text(encoding="utf-8")
+    assert "score <= 0.5" not in src, "失败判据不能是硬编码字面量"
+    assert "batch_threshold()" in src, "应当从 recipe 读"
+    assert "max_score" in src
+
+
+def test_missing_recipe_raises_rather_than_guessing_a_default():
+    """读不到就抛。猜一个默认值,会让整轮的「有没有失败」都是错的而日志正常。"""
+    import importlib.util
+    import sys
+
+    spec = importlib.util.spec_from_file_location("_runpy_probe", ROOT / "reef_example" / "run.py")
+    assert spec and spec.loader
+    sys.path.insert(0, str(ROOT / "reef_example"))
+    try:
+        import reef_client  # noqa: F401
+    except ImportError:
+        pytest.skip("reef_example deps unavailable: No module named 'reef_client'")
+    module = importlib.util.module_from_spec(spec)
+    import os
+    old = os.environ.get("RESTORE_WORK")
+    os.environ["RESTORE_WORK"] = "work/definitely-not-materialized"
+    try:
+        spec.loader.exec_module(module)
+        with pytest.raises(RuntimeError, match="max_score"):
+            module.batch_threshold()
+    finally:
+        if old is None:
+            os.environ.pop("RESTORE_WORK", None)
+        else:
+            os.environ["RESTORE_WORK"] = old

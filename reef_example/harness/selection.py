@@ -32,17 +32,40 @@ from math import comb
 log = logging.getLogger("restore.selection")
 
 
-def _tally(candidate, current) -> tuple[int, int]:
-    """(wins, losses),口径与 reef 的 `_score_comparison_tally` 一致:None 视为 -inf。"""
-    wins = losses = 0
+def _measurable(value) -> bool:
+    """这一次评估到底测出东西了没有。
+
+    `None` 是 reef 在 episode 根本没跑起来时给的(`_run_and_score` 捕获 EpisodeError /
+    TrajectoryError 的那两支),`NaN` 是消融的 exclude 臂。两者都不是成绩。
+    """
+    import math
+
+    return value is not None and not (isinstance(value, float) and math.isnan(value))
+
+
+def _tally(candidate, current) -> tuple[int, int, int]:
+    """(wins, losses, excluded)。**测不出来的对子不参与胜负。**
+
+    这里和 reef 的 `_score_comparison_tally` 口径**不同**,是有意的。reef 把 `None`
+    当 `-inf`,于是"这个 episode 没启动起来"被算成"它比对面差",白送对面一个 loss。
+    那跟策略好坏毫无关系 —— 容器没起来、pi 崩了、机器卡了,都会变成闸门的证据。
+
+    这正是这个仓一直在追的那个病:基础设施的失效伪装成算法效果。照抄别人的口径
+    而没问它对不对,就把同一个坑抄进来了(2026-09-06 才发现,当时已经用了三天)。
+
+    排除之后 n 变小,符号检验会自动变严 —— n=2 时临界值是 3,怎么都不显著。
+    那是对的:证据少了,就该更难发布,而不是拿剩下的几个凑一个结论。
+    """
+    wins = losses = excluded = 0
     for cand, cur in zip(candidate, current, strict=True):
-        cand_rank = cand if cand is not None else float("-inf")
-        cur_rank = cur if cur is not None else float("-inf")
-        if cand_rank > cur_rank:
+        if not (_measurable(cand) and _measurable(cur)):
+            excluded += 1
+            continue
+        if cand > cur:
             wins += 1
-        elif cand_rank < cur_rank:
+        elif cand < cur:
             losses += 1
-    return wins, losses
+    return wins, losses, excluded
 
 
 def sign_test_threshold(n: int, alpha: float) -> int:
@@ -82,16 +105,20 @@ class SignTestSelector:
 
         candidate_scores = tuple(evaluation.metrics.get("candidate_scores", ()))
         current_scores = tuple(evaluation.metrics.get("current_scores", ()))
-        wins, losses = _tally(candidate_scores, current_scores)
-        ties = len(candidate_scores) - wins - losses
+        wins, losses, excluded = _tally(candidate_scores, current_scores)
+        ties = len(candidate_scores) - wins - losses - excluded
         n = wins + losses  # 平局不带方向信息,按惯例剔除
         threshold = sign_test_threshold(n, self.alpha)
         selected = wins >= threshold
         p = p_value(wins, n)
         reason = (
-            f"sign test: {wins}/{n} wins (ties {ties} dropped), threshold {threshold} at alpha={self.alpha}, "
-            f"one-sided p={p:.3f}"
+            f"sign test: {wins}/{n} wins (ties {ties} dropped, {excluded} unmeasurable), "
+            f"threshold {threshold} at alpha={self.alpha}, one-sided p={p:.3f}"
         )
+        if excluded:
+            # 一定要说出来:排除了几对,直接决定这一步的证据有多少
+            log.warning("gate: %d/%d 对无法测量(episode 没跑起来,或消融的 exclude 臂)",
+                        excluded, len(candidate_scores))
         log.info("gate: %s -> %s", reason, "select" if selected else "reject")
         return SelectionDecision(
             outcome="select" if selected else "reject",
@@ -99,7 +126,8 @@ class SignTestSelector:
             policy_version="1",
             reason=reason,
             evaluation=evaluation,
-            metrics={"wins": wins, "losses": losses, "ties": ties, "n": n, "threshold": threshold, "p_value": p},
+            metrics={"wins": wins, "losses": losses, "ties": ties, "excluded": excluded,
+                     "n": n, "threshold": threshold, "p_value": p},
         )
 
 
@@ -119,7 +147,7 @@ class WinsOverLossesSelector:
 
         candidate_scores = tuple(evaluation.metrics.get("candidate_scores", ()))
         current_scores = tuple(evaluation.metrics.get("current_scores", ()))
-        wins, losses = _tally(candidate_scores, current_scores)
+        wins, losses, excluded = _tally(candidate_scores, current_scores)
         selected = wins > losses
         reason = f"wins>losses: {wins} vs {losses} (ablation arm; false-positive rate 50% by construction)"
         log.info("gate[ablation]: %s -> %s", reason, "select" if selected else "reject")
@@ -131,7 +159,7 @@ class WinsOverLossesSelector:
             evaluation=evaluation,
             # 刻意也报 p 值:同一份数据在受控判据下**本来**是什么结论,要能直接对照。
             metrics={
-                "wins": wins, "losses": losses, "n": wins + losses,
+                "wins": wins, "losses": losses, "excluded": excluded, "n": wins + losses,
                 "p_value": p_value(wins, wins + losses),
             },
         )

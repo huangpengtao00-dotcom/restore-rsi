@@ -72,3 +72,41 @@ def test_ties_are_dropped_not_counted_as_evidence():
     decision = _decide([0.5, 0.5, 0.5] + [0.2] * 6, [0.1, 0.1, 0.1] + [0.2] * 6)
     assert decision.metrics["ties"] == 6
     assert decision.metrics["n"] == 3, "平局不能进 n"
+
+
+# ------------------------------------------------- 测不出来 ≠ 表现最差
+
+def test_a_failed_episode_is_excluded_not_counted_as_a_loss():
+    """`None` 是 episode 根本没跑起来,不是"它比对面差"。
+
+    reef 的口径把 None 当 -inf,于是容器没起来、pi 崩了、机器卡了,都会变成闸门的
+    证据 —— 白送对面一个 loss。照抄那个口径而没问它对不对,就是把"基础设施失效
+    伪装成算法效果"这个坑抄进自己家(用了三天才发现)。
+
+    正确的做法是排除:证据少了就该更难发布,而不是拿故障当成绩。
+    """
+    from harness.selection import _tally
+
+    # 候选第二个 episode 没跑起来,另外两个一胜一负
+    wins, losses, excluded = _tally((0.9, None, 0.2), (0.5, 0.5, 0.5))
+    assert (wins, losses, excluded) == (1, 1, 1)
+    # 旧口径会得到 (1, 2):那个 None 变成了一个 loss
+    assert losses == 1, "没跑起来的 episode 不该算输"
+
+
+def test_excluding_makes_the_gate_harder_not_easier():
+    """排除之后 n 变小,符号检验自动更严 —— 这是对的,不是副作用。
+
+    少了证据还想发布,就该更难。n=2 时临界值是 3,怎么都不显著。
+    """
+    from harness.selection import sign_test_threshold
+
+    assert sign_test_threshold(9, 0.10) == 7
+    assert sign_test_threshold(2, 0.10) > 2, "n=2 时应当无法达到临界值"
+    assert sign_test_threshold(0, 0.10) == 1, "没有可比的对子就不可能发布"
+
+
+def test_both_sides_unmeasurable_yields_no_evidence():
+    from harness.selection import _tally
+
+    assert _tally((None, None), (None, None)) == (0, 0, 2)
