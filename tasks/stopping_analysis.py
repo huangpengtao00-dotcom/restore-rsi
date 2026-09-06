@@ -73,6 +73,8 @@ def main() -> None:
     print(f"     它说该走、实际变差:{fp} 次  ← 这就是把图弄坏的那些步")
     print(f"     它说别走、实际变好:{fn} 次")
 
+    granularity_report(rows)
+
     print("\n=== 分链长看:越往后越容易走错吗 ===")
     print(f"{'链长':>5s}{'决策点':>8s}{'实际变好占比':>14s}{'读数规则准确率':>16s}")
     for d in sorted({r["depth"] for r in rows}):
@@ -156,6 +158,70 @@ def greedy_simulation(depth: int, tau_values, tasks=None) -> None:
     print("  「完美停手」= 同一条贪心轨迹上出现过的最高分。它和 τ 那几列的差,")
     print("  就是「走过最优点却不知道该停」白丢的分 —— 不需要更好的工具,只需要知道何时收手。")
 
+
+
+
+
+# --------------------------------------------------------------- 决策粒度
+
+READINGS_4 = ("haze", "low_light", "noise", "blur")
+
+
+def severity_drop(row: dict) -> float:
+    """走这一步之后,诊断总分降了多少(agent 看得见的那个量)。"""
+    before = sum(row["obs"][k] for k in READINGS_4)
+    after = sum(row["obs_after"][k] for k in READINGS_4)
+    return before - after
+
+
+def by_decision_group(rows: list[dict]) -> dict[tuple[str, str], list[dict]]:
+    """按 (任务, 当前链) 分组。一组 = 一次真实决策,组内是六个候选工具。"""
+    from collections import defaultdict
+
+    groups: dict[tuple[str, str], list[dict]] = defaultdict(list)
+    for row in rows:
+        groups[(row["task_id"], row["chain"])].append(row)
+    return groups
+
+
+def granularity_report(rows: list[dict]) -> None:
+    """同一个信号在两个粒度上差多少 —— 以及为什么只有一个是「停手」。
+
+    2026-09-06 的修正。此前报告的「最好的盲信号 AUC 0.789」是在**逐行**数据上算的:
+    每个 (状态, 候选工具) 一行,问「这个候选会不会改善」。那道题里最差的工具只有
+    14.5% 会改善、最好的有 68.8%,跨度极大,信号轻松把两群分开 —— 它测的是
+    **选择**(哪个工具好),不是**停手**(该不该再走一步)。
+
+    真实的停手决策发生在选完之后。按同样的规则选出最佳工具再问「走它会不会改善」,
+    同一个信号从 0.789 掉到 0.545,而基线是 68.8% —— 几乎没有预测能力。
+
+    结论要改口径:**不是「有一个 AUC 0.789 的信号但还不够好」,而是「在正确的决策
+    粒度上,现有的无参考信号全都接近随机」**。停手问题比原先描述的更难,那 23% 的
+    可达分数也更难拿回来。
+
+    方法学教训:换一个决策粒度,同一个数就在回答另一个问题。报 AUC 之前先说清楚
+    判别的是什么。
+    """
+    all_labels = [r["improved"] for r in rows]
+    per_row = auc([severity_drop(r) for r in rows], all_labels)
+
+    groups = by_decision_group(rows)
+    best = [max(members, key=severity_drop) for members in groups.values()]
+    worst = [min(members, key=severity_drop) for members in groups.values()]
+    per_group = auc([severity_drop(r) for r in best], [r["improved"] for r in best])
+    worst_auc = auc([severity_drop(r) for r in worst], [r["improved"] for r in worst])
+
+    print("\n=== 决策粒度:同一个信号,两个问题 ===")
+    print(f"{'问题':46s}{'样本':>7s}{'基线':>8s}{'AUC':>8s}")
+    for label, sample, a in (
+        ("A 任意一个候选工具会不会改善(选择问题)", rows, per_row),
+        ("B 已选出的最佳工具,走不走(停手问题)", best, per_group),
+        ("  对照:每组最差的工具", worst, worst_auc),
+    ):
+        base = sum(r["improved"] for r in sample) / len(sample)
+        print(f"{label:46s}{len(sample):>7d}{base*100:>7.1f}%{a:>8.3f}")
+    print("  A 的高 AUC 来自把好工具和坏工具分开,那不是停手决策要回答的问题。")
+    print("  真实决策在选完之后,而在那个粒度上信号接近抛硬币。")
 
 
 if __name__ == "__main__":
