@@ -23,6 +23,22 @@ PORT="${REEF_PORT:-8900}"
 mkdir -p "$WORK/recipes" "$WORK/results"
 echo "== work=$WORK port=$PORT ablation=${RESTORE_ABLATION:-baseline}"
 
+# 端口被占就停,**绝不接着跑**。
+#
+# 这不是洁癖:2026-09-06 实测,上一轮的 reef 没停干净占着 8900,新一轮的 reef 起不来
+# (Errno 48),而 run.py 照样连上去 —— 连的是**旧实例**,它的 work 目录是上一个臂的。
+# 于是 pi 的 trace 全写进别的臂,判分自然全 0,而唯一的线索是一句 409
+# "agent_record_id already has different content" 埋在 run.py 的堆栈里。
+#
+# 并行跑多个臂时这尤其危险:端口一撞,新臂的数据就整批来自旧配置,消融表里那一行
+# 会是别的配置跑出来的,而没有任何地方会说这件事。
+if lsof -ti:"$PORT" > /dev/null 2>&1; then
+    echo "端口 $PORT 已被占用(pid: $(lsof -ti:"$PORT" | tr '\n' ' '))。" >&2
+    echo "换一个 REEF_PORT,或先停掉占用者 —— 不能接着跑:run.py 会连上那个旧实例," >&2
+    echo "拿着别的臂的 work 目录产出数据,而日志看起来完全正常。" >&2
+    exit 1
+fi
+
 # 1. Environment.
 #    - the venv first on PATH so `python3` (reef.service) and `restore` resolve
 #      there; bin/ before it so pi episodes get the RESTORE_* wrapper

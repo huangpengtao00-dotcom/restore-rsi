@@ -174,3 +174,19 @@ def test_run_sh_puts_the_arm_wrapper_first_on_path():
     arm_pos, shared_pos = line.index('$WORK/bin'), line.index('$PWD/bin')
     assert arm_pos < shared_pos, f"臂 wrapper 应当在共用 bin 之前:{line}"
     assert "make-arm-wrapper.sh" in src, "run.sh 必须调用生成脚本"
+
+
+def test_run_sh_refuses_to_start_on_a_busy_port():
+    """端口被占必须退出,不能接着跑。
+
+    实测过后果:上一轮的 reef 占着 8900,新一轮起不来(Errno 48),而 run.py 连上了
+    **旧实例** —— 它的 work 目录是上一个臂的,pi 的 trace 全写进别处,判分全 0,
+    唯一线索是一句 409 "agent_record_id already has different content" 埋在堆栈里。
+
+    并行跑臂时这最危险:端口一撞,新臂那一行数据整批来自旧配置,而没有任何地方
+    会说出来。
+    """
+    src = (ROOT / "reef_example" / "run.sh").read_text(encoding="utf-8")
+    assert 'lsof -ti:"$PORT"' in src, "启动前必须检查端口"
+    guard = src[src.index('lsof -ti:"$PORT"'):]
+    assert "exit 1" in guard[:600], "占用时必须退出,而不是警告后继续"
