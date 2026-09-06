@@ -171,6 +171,88 @@ def cmd_diagnose(inp: Path) -> int:
     return 0
 
 
+# ---------------- remote backend ----------------
+
+#: 工具服务的地址。**工具在哪是一个配置,不是一处代码**:
+#:
+#:   循环跑在有卡的机器上   RESTORE_TOOL_SERVER=http://127.0.0.1:8710   零网络
+#:   循环跑在别的机器上     RESTORE_TOOL_SERVER=http://<tailnet-ip>:8710 走 tailnet
+#:
+#: 这个形状不是凭空来的:JarvisArt 也是因为 Lightroom 只能跑在特定机器上,
+#: 才做了 Agent-to-Lightroom 的 server-client 协议来支持多机多卡。
+TOOL_SERVER = os.environ.get("RESTORE_TOOL_SERVER", "http://127.0.0.1:8710")
+
+#: 单次调用的墙钟上限。真专家模型第一次调用要加载权重,给足。
+REMOTE_TIMEOUT_S = float(os.environ.get("RESTORE_REMOTE_TIMEOUT", "600"))
+
+#: 重试次数。实测 tailnet 走 DERP 中继时会丢包(macbook -> 4070:132ms,50% loss),
+#: 而一次网络抖动不该被记成"这个工具把图弄坏了"。重试穷尽后**抛错**,不返回原图。
+REMOTE_RETRIES = int(os.environ.get("RESTORE_REMOTE_RETRIES", "3"))
+
+
+def remote_tool_url(backend: str, server: str | None = None) -> tuple[str, str]:
+    """`remote:<tool>` -> (工具名, 完整 URL)。纯函数,便于测试。"""
+    tool = backend.split(":", 1)[1].strip()
+    if not tool or "/" in tool:
+        raise ValueError(f"bad remote backend spec: {backend!r} (want 'remote:<tool>')")
+    base = (server or TOOL_SERVER).rstrip("/")
+    return tool, f"{base}/run/{tool}"
+
+
+def remote_tools(server: str | None = None, timeout: float = 10.0) -> set[str]:
+    """服务端此刻真的能跑哪些工具。`doctor` 用它,所以它必须问服务端,
+    而不是相信注册表 —— 注册表说的是「打算接」,服务端说的是「接上了」。"""
+    import json as _json
+    import urllib.request
+
+    base = (server or TOOL_SERVER).rstrip("/")
+    with urllib.request.urlopen(f"{base}/tools", timeout=timeout) as resp:  # noqa: S310
+        return set(_json.loads(resp.read().decode())["tools"])
+
+
+def run_remote_tool(backend: str, inp: Path, out: Path) -> None:
+    """把图 POST 给工具服务,把结果写到 out。任何失败都抛错。
+
+    只发字节,不发文件名 —— 与 docker 后端同样的理由:JarvisIR 的
+    `process_image` 在输入路径里 grep "fog"/"night"/"snow" 来限制可用工具,
+    而数据集按场景命名目录,那就是一条从路径泄漏答案的通道。
+    """
+    import time as _time
+    import urllib.error
+    import urllib.request
+
+    tool, url = remote_tool_url(backend)
+    payload = inp.read_bytes()
+    last = None
+    for attempt in range(1, REMOTE_RETRIES + 1):
+        request = urllib.request.Request(  # noqa: S310
+            url, data=payload, method="POST",
+            headers={"Content-Type": "image/png", "Content-Length": str(len(payload))},
+        )
+        try:
+            with urllib.request.urlopen(request, timeout=REMOTE_TIMEOUT_S) as resp:  # noqa: S310
+                body = resp.read()
+            if not body:
+                raise RuntimeError(f"remote tool {tool!r} returned 200 with an empty body")
+            out.parent.mkdir(parents=True, exist_ok=True)
+            out.write_bytes(body)
+            return
+        except urllib.error.HTTPError as exc:
+            # 4xx 是我们自己的错(工具名不对、服务端没这个工具),重试无意义
+            detail = exc.read()[:300].decode("utf-8", "replace")
+            if exc.code < 500:
+                raise RuntimeError(f"remote tool {tool!r} rejected: HTTP {exc.code} {detail}") from exc
+            last = f"HTTP {exc.code} {detail}"
+        except (urllib.error.URLError, TimeoutError, OSError) as exc:
+            last = repr(exc)
+        if attempt < REMOTE_RETRIES:
+            _time.sleep(2.0 * attempt)
+    raise RuntimeError(
+        f"remote tool {tool!r} failed {REMOTE_RETRIES}x at {url}: {last}. "
+        f"不把输入当输出传下去 —— 一次网络失败不是「这个工具没用」。"
+    )
+
+
 # ---------------- docker backend ----------------
 
 #: 容器内的固定路径。宿主机的文件名**不进容器** —— 这是有意的,不是洁癖。
@@ -289,6 +371,8 @@ def cmd_run(tool: str, inp: Path, out: Path) -> int:
             Image.fromarray(result).save(out)
         elif backend.startswith("docker:"):
             run_docker_tool(backend, inp, out)
+        elif backend.startswith("remote:"):
+            run_remote_tool(backend, inp, out)
         else:
             raise ValueError(f"bad backend spec: {backend}")
         if not out.exists():
@@ -314,6 +398,13 @@ def check_tool(name: str, spec: dict) -> tuple[bool, str]:
 
         fn = backend.split(":", 1)[1]
         return (True, "builtin ok") if hasattr(builtin, fn) else (False, f"builtin.{fn} 不存在")
+    if backend.startswith("remote:"):
+        tool, url = remote_tool_url(backend)
+        try:
+            available = remote_tools()
+        except Exception as exc:  # noqa: BLE001 - doctor 的职责就是把不可达如实报出来
+            return False, f"工具服务 {TOOL_SERVER} 问不到:{exc!r}"
+        return (True, f"服务端有 {tool}") if tool in available else (False, f"服务端没有 {tool}(有:{sorted(available)})")
     if backend.startswith("docker:"):
         import shutil
 

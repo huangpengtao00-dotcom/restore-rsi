@@ -125,21 +125,45 @@ scripts/check_skips.py CI 闸门:跳过的测试数必须等于说好的那个�
 
 ## 工具层:6 个能跑的,12 个在册待接
 
-`toolbox/registry.yaml` 里现在有 18 个工具:
+`toolbox/registry.yaml` 里现在有 18 个工具,三种后端:
 
-| | 数量 | 状态 |
-|---|---|---|
-| **builtin**(经典 CPU 算法) | 6 | 可跑。DCP 去雾 / gamma + CLAHE 提亮 / 双边 + 中值去噪 / unsharp 锐化 |
-| **docker**(JarvisIR 的专家模型) | 12 | 在册,`enabled: false`,等镜像和卡 |
+| 后端 | 数量 | 在哪跑 | 状态 |
+|---|---|---|---|
+| **builtin** | 6 | 本进程 | 可跑。DCP 去雾 / gamma + CLAHE 提亮 / 双边 + 中值去噪 / unsharp 锐化 |
+| **docker** | — | 本机容器 | 依赖隔离用:12 个专家模型来自 12 篇论文,torch/basicsr 版本互相冲突 |
+| **remote** | — | 任意一台机器 | 循环和卡不必在一起 |
+| *(JarvisIR 专家模型)* | 12 | — | 在册,`enabled: false`,等权重和卡 |
 
-加工具只改这个 yaml,不改代码。接真模型时把 `enabled` 打开、跑 `restore doctor` 确认,
-循环那一侧什么都不用动 —— docker 后端和 builtin 一样是一进一出。
+加工具只改这个 yaml,不改代码。**三种后端都是一进一出**,所以换后端时循环、缓存、
+trace、闸门一行都不用动。
 
-**镜像契约**只有一条:读 `/work/in/input.png`,把结果写到 `/work/out/output.png`。
-宿主机的文件名不进容器,这是有意的 —— 见下面第 4 条。
+### 循环和卡可以不在同一台机器上
+
+真专家模型要 GPU,而 GPU 未必是跑循环那台。所以工具在哪是一个**配置**:
 
 ```bash
-restore doctor      # 逐个验证声明的工具此刻是否真能跑
+# 在有卡的机器上起服务
+python -m toolbox.server --port 8710
+
+# 循环那侧只改一个环境变量
+RESTORE_TOOL_SERVER=http://127.0.0.1:8710        # 同机,零网络
+RESTORE_TOOL_SERVER=http://<tailnet-ip>:8710     # 跨机
+```
+
+这个形状不是凭空来的:JarvisArt 也是因为 Lightroom 只能跑在特定机器上,才做了
+Agent-to-Lightroom 的 server-client 协议来支持多机多卡。
+
+**执行位置不是一个自由变量**,这一点是测出来的而不是假定的:同一个算子经 HTTP 跑一遍,
+输出与本机直接跑**像素完全相同**(`tests/test_remote_backend.py` 真起一个服务来验,
+不 mock)。它一旦不成立,之前所有跨机器跑出来的数字就不能和本机的比 —— 那正是
+"拿两个数比大小却没先确认可比性" 的又一个入口。判据的灵敏度也验过:让服务端悄悄
+改一个像素、差 1,测试立刻红。
+
+**两种后端的路径纪律相同**:docker 只让容器看到 `input.png`,remote 只发字节不发文件名。
+理由见下面第 5 条。
+
+```bash
+restore doctor      # 逐个验证声明的工具此刻是否真能跑(remote 会去问服务端)
 restore catalog     # agent 看到的目录,只列可跑的
 ```
 

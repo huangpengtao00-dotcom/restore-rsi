@@ -4,7 +4,19 @@
 #   task:    所属退化类型(agent 规划时的语义分组;同 task 下可有多个候选)
 #   backend: 执行后端
 #     - builtin:<fn>  toolbox/builtin.py 里的经典算法(无 GPU 替身,保证循环在 Mac 上能跑)
-#     - docker:<image> <cmd>  真 JarvisIR 专家模型(以后接入,接口不变:in.png out.png)
+#     - docker:<image> <cmd>  在本机容器里跑。13 个专家模型来自 13 篇论文,
+#                             torch/basicsr 版本互相冲突,容器是唯一能一起装下的办法
+#     - remote:<tool>         POST 给工具服务(地址在 RESTORE_TOOL_SERVER)。
+#                             **循环和卡不必在同一台机器上** —— 服务端在有卡的机器上跑
+#                             `python -m toolbox.server`,循环那侧只改一个环境变量。
+#                             已端到端验证 remote 不改变结果:同一个算子经 HTTP 跑一遍,
+#                             输出 sha256 与本机直接跑完全相同(147ms -> 327ms,是连接开销)。
+#
+# 接真模型时只要把某个工具改成:
+#   ridcp:
+#     backend: "remote:ridcp"
+#     enabled: true
+# 循环、缓存、trace、闸门一行都不用动 —— 三种后端都是一进一出。
 #   cost:    相对耗时(供 agent/调度参考)
 #   note:    给 agent 看的一句话能力描述(会进 diagnose 输出的 tool catalog)
 tools:
