@@ -76,6 +76,45 @@ def task_prompt(catalog: str, prompt_id: str, input_path: Path) -> str:
     )
 
 
+def load_ceilings() -> tuple[dict[str, float], int | None]:
+    """每道题穷举出来的上界,用来把「失败」定义成相对的。
+
+    `data.max_score` 是一个绝对阈值(0.5),而这 12 道题的天花板差 **46.5 倍**
+    (0.0215 ~ 1.0000)。实测后果,12 题里 4 题判反:
+
+      low_light_00   上界 1.000,拿到 0.656(达成 66%)-> 绝对阈说它"成功",
+                     于是**永远进不了 batch**,propose 从没见过这道有巨大改进空间的题
+      haze_noise_00  上界 0.202,拿到 0.228(达成 113%)-> 绝对阈说它"失败",
+                     于是进 batch,propose 去为一道已经做到头的题找不存在的改进
+
+    也就是说 batch 的组成本身是偏的:该学的进不来,已到极限的混进来。这不是调参
+    能修的,阈值再挪也还是一把尺子量 46 倍量程。
+
+    ⚠️ 上界是**给定步数预算**下的上界(depth 来自 oracle 文件),而中继允许更多步,
+    所以达成率可以超过 100% —— 那是"多走几步越过了少步上界",不是算错。要拿它当
+    严格上界用,得跑同预算的 oracle。
+
+    找不到 oracle 文件返回空 dict:调用方会退回绝对阈值并**明说**,不静默。
+    """
+    import os
+
+    default = HERE.parent / "work" / "oracle.json"
+    if not default.exists():
+        # 受版本管理的那份:clone 下来就有,不必先跑一遍 oracle_chains
+        default = HERE / "evidence" / "2026-09-06-oracle-d3-all12" / "oracle.json"
+    path = Path(os.environ.get("RESTORE_ORACLE", default))
+    if not path.exists():
+        print(f"  no oracle at {path}: 「失败」退回绝对阈值 data.max_score,"
+              f"而各题上界并不同量级 —— 跑 tasks/oracle_chains.py 生成它")
+        return {}, None
+    report = json.loads(path.read_text())
+    ceilings = {tid: entry["best_score"] for tid, entry in report["tasks"].items()}
+    depth = report.get("depth")
+    print(f"  ceilings from {path.name}: {len(ceilings)} tasks, depth<={depth}, "
+          f"range {min(ceilings.values()):.4f}~{max(ceilings.values()):.4f}")
+    return ceilings, depth
+
+
 def main() -> None:
     config = yaml.safe_load((HERE / "serve.yaml").read_text())
     restore = config["restore"]
@@ -95,6 +134,7 @@ def main() -> None:
     # the path names the degradations. task_refs.json keys on the same opaque id
     # (the judge reads it); task_map.json is the reverse map, for analysis only.
     repeats = int(restore.get("repeats", 1))
+    ceilings, ceiling_depth = load_ceilings()
     tasks, refs, mapping = [], {}, {}
     for task_id in restore["task_ids"]:
         frame = by_id[task_id]["frames"][0]
@@ -107,7 +147,13 @@ def main() -> None:
         # configuration - the gate votes over them, and their disagreement is
         # the step's own reliability read-out.
         tasks.extend([prompt] * repeats)
-        refs[prompt_id] = {"input": str(episode_input), "reference": frame["reference"]}
+        refs[prompt_id] = {
+            "input": str(episode_input),
+            "reference": frame["reference"],
+            # 天花板随任务一起下发,因为"失败"必须是相对这道题能达到什么来定义的。
+            # 见下面 oracle 的注释:12 道题的上界差 46.5 倍(0.0215 ~ 1.0000)。
+            **({"ceiling": ceilings[task_id], "ceiling_depth": ceiling_depth} if task_id in ceilings else {}),
+        }
         mapping[prompt_id] = task_id
 
     recipe = {key: config[key] for key in RECIPE_SECTIONS}

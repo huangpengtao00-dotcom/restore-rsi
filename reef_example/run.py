@@ -36,6 +36,7 @@ from pathlib import Path
 from reef_client import ReefClient, ReefClientError
 
 from harness.evolution import parse_score, task_id
+from harness.scoring import attained
 
 HERE = Path(__file__).resolve().parent
 SERVICE_URL = "http://127.0.0.1:8900"  # the Reef run.sh started
@@ -141,7 +142,8 @@ def record_episode(tid: str, prompt: str, frame: dict, client: ReefClient, log) 
     messages = [{"role": "user", "content": prompt}]
     receipts: list[str] = []
     chain: list[str] = []
-    env = {**os.environ, "RESTORE_EPISODE_ID": f"record-{tid}-{int(time.time())}"}
+    episode_id = f"record-{tid}-{int(time.time())}"
+    env = {**os.environ, "RESTORE_EPISODE_ID": episode_id}
     nudged = False
     with tempfile.TemporaryDirectory(prefix=f"restore-record-{tid}-") as scratch:
         cwd = Path(scratch)
@@ -186,7 +188,8 @@ def record_episode(tid: str, prompt: str, frame: dict, client: ReefClient, log) 
             messages.append({"role": "user", "content": "\n\n".join(observations) + "\n\n" + FOLLOW_UP})
         if not chain:
             reason = f"upstream failed at turn {truncated}" if truncated else f"no tool ran in {len(receipts)} turn(s)"
-            return 0.0, reason, receipts
+            # 0 在两种口径下都是 0,但把口径写出来,免得后面对数时要猜
+            return 0.0, f"episode={episode_id} {reason} (nothing ran; 0 in either scale)", receipts
         score_run = _restore(["score", frame["input"], str(current), "--ref", frame["reference"]], cwd, env)
     score = parse_score(score_run.stdout)
     if score is None:
@@ -200,7 +203,18 @@ def record_episode(tid: str, prompt: str, frame: dict, client: ReefClient, log) 
             f"(exit={score_run.returncode}, no REEF_SCORE line): {_clip(score_run, 300)!r}"
         )
     note = f" truncated@{truncated}" if truncated else ""
-    return score, f"turns={len(receipts)} chain=" + ">".join(chain) + note, receipts
+    # 报给 reef 的是**达成率**(相对这道题穷举出来的上界),不是绝对分。
+    #
+    # `data.max_score` 是一把绝对的尺子,而这 12 道题的上界差 46.5 倍。实测 4/12
+    # 判反:low_light_00 上界 1.000 只拿到 66%,绝对阈说它"成功"于是永不进 batch;
+    # haze_noise_00 上界 0.202 拿到 113%,绝对阈说它"失败"于是进 batch,让 propose
+    # 去为一道已经做到头的题找不存在的改进。batch 的组成因此系统性地偏了。
+    #
+    # 绝对分和上界都留在 feedback 里,所以这个换算随时可以还原,任何历史数字也还能对上。
+    reported, scale = attained(score, frame)
+    # episode id 显式写进 feedback,而不是让 propose 按 task 前缀去猜最近的那个 ——
+    # 猜会在重跑同一任务时静默取错一轮,而取错的症状是"策略建议看起来莫名其妙"。
+    return reported, f"episode={episode_id} turns={len(receipts)}{scale} chain=" + ">".join(chain) + note, receipts
 
 
 def main() -> None:
@@ -240,7 +254,7 @@ def main() -> None:
         )
         if score <= 0.5:
             failures += 1
-        log(f"task {index} {tid}: score {score:.4f} ({feedback}) receipts {receipts} {time.monotonic() - t0:.0f}s")
+        log(f"task {index} {tid}: reported {score:.4f} ({feedback}) receipts {receipts} {time.monotonic() - t0:.0f}s")
 
     if failures == 0:
         log("every task passed: nothing batched, no evolve step runs")

@@ -1,0 +1,14 @@
+{
+  "haze_00": 0.0,
+  "haze_01": 0.5162,
+  "low_light_00": 0.6564,
+  "low_light_01": 0.6695,
+  "noise_00": 0.8914,
+  "noise_01": 0.0483,
+  "haze_low_light_00": 0.6054,
+  "haze_low_light_01": 0.267,
+  "low_light_noise_00": 0.5955,
+  "low_light_noise_01": 0.6864,
+  "haze_noise_00": 0.2281,
+  "haze_noise_01": 0.4766
+}

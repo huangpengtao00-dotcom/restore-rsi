@@ -61,6 +61,57 @@ _SHORTCUT_PATTERNS = (
 )
 
 
+#: feedback 里的 `episode=<id>`(run.py 显式写进去的)。
+EPISODE_IN_FEEDBACK = re.compile(r"episode=(\S+)")
+
+
+def replay_trajectory(episode_id: str, limit: int = 8) -> list[dict]:
+    """从工具 trace 里重建这一轮的观测-动作序列。
+
+    propose 原来只拿到任务 prompt、分数,和一句 `chain=sharpen>gamma`。那不足以
+    诊断任何东西:它看不到 **agent 当时读到的诊断数值**,所以只能凭任务描述猜策略。
+    而 2026-09-03 那次实测里,错误恰恰是可诊断的 —— 雾读数 0.317 的图上第一步选了
+    锐化(锐化在任何最优链里都不出现)。有了读数,这就从"策略运气不好"变成
+    "在这个读数下不该选这个工具",后者才是一条能写进 skill 的经验。
+
+    每个 diagnose 事件带 input_sha,每个 run 事件带 (tool, input_sha, output_sha),
+    所以按输入哈希就能把"看到什么"和"于是做了什么"对上,不依赖时间顺序去猜。
+    """
+    import json as _json
+
+    trace = _results_dir() / "trace.jsonl"
+    try:
+        lines = trace.read_text().splitlines()
+    except OSError:
+        return []
+    readings: dict[str, dict] = {}
+    steps: list[dict] = []
+    for line in lines:
+        try:
+            event = _json.loads(line)
+        except ValueError:
+            continue
+        if event.get("episode") != episode_id:
+            continue
+        if event.get("kind") == "diagnose" and event.get("input_sha"):
+            readings[event["input_sha"]] = event.get("result") or {}
+        elif event.get("kind") == "run" and event.get("status") in {"ok", "cache_hit"}:
+            steps.append({
+                "tool": event.get("tool"),
+                "input_sha": event.get("input_sha"),
+                "output_sha": event.get("output_sha"),
+            })
+    out = []
+    for index, step in enumerate(steps[:limit], start=1):
+        out.append({
+            "step": index,
+            # 没测就写 null,不写 {} —— "它没看诊断就动手了" 本身是要给模型看的信息
+            "diagnosis_it_saw": readings.get(step["input_sha"]),
+            "tool_it_chose": step["tool"],
+        })
+    return out
+
+
 # --------------------------------------------------------------------------- propose
 
 
@@ -80,12 +131,17 @@ def propose(nodes, samples, models):
         payload = sample.payload
         messages = payload.get("messages") if isinstance(payload, dict) else None
         prompt = messages[-1].get("content") if messages else str(payload)
+        feedback = getattr(sample, "feedback", None)
+        episode = EPISODE_IN_FEEDBACK.search(feedback or "")
         failures.append(
             {
                 "task": task_id(prompt) or "?",
                 "prompt": prompt,
                 "score": getattr(sample, "score", None),
-                "feedback": getattr(sample, "feedback", None),
+                "feedback": feedback,
+                # 观测-动作序列。空列表意味着 trace 里找不到这一轮 —— 那是接线问题,
+                # 不是"这一轮什么都没做",所以照实给出空,不编。
+                "what_it_actually_did": replay_trajectory(episode.group(1)) if episode else [],
             }
         )
     prompt = (
@@ -96,6 +152,11 @@ def propose(nodes, samples, models):
         "1.0 = 35 dB). The tasks below scored at or below 0.5 (failed).\n\n"
         f"Failed tasks (prompt, score):\n{json.dumps(failures, indent=2, ensure_ascii=False, default=str)}\n\n"
         f"Current skills:\n{json.dumps(skills, indent=2, ensure_ascii=False)}\n\n"
+        "Each failed task includes `what_it_actually_did`: the diagnosis numbers the agent saw at each "
+        "step and the tool it then chose. Use it. A strategy that only restates the task description "
+        "cannot fix anything - the fixable errors are of the form \"at these readings it chose that tool\". "
+        "If `diagnosis_it_saw` is null the agent acted without diagnosing first, which is itself worth "
+        "a rule.\n\n"
         "Write ONE improved or new skill (SKILL.md markdown) that gives the agent a concrete restoration "
         "strategy: how to read the diagnosis numbers, which tool sequence to use for combined haze+low-light "
         "and low-light+noise, when to apply a tool twice, what to avoid (e.g. dehazing a dark image first "
