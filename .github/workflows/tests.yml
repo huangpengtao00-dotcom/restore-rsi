@@ -1,0 +1,68 @@
+# 两个 job,因为这个仓有两层依赖,而它们会以不同方式变绿。
+#
+#   core        只用 pyproject 的主依赖(numpy/pillow/pyyaml)。reef 是本地 editable
+#               路径依赖(`[tool.uv.sources]` 指向 ../reef),在别人的机器上不存在,
+#               所以这里 `--no-sources`。代价是 15 项 reef 相关的测试会 skip。
+#   with-reef   把 reef clone 到 ../reef 再装,跑全量,要求 **0 skip**。
+#
+# 两个 job 都过 scripts/check_skips.py:`pytest` 在缺数据、缺依赖时会 skip 掉一片
+# 测试并**依然退出 0**(这个仓真实发生过:tasks/data 是 gitignored 的生成物,而
+# make_tasks.py 曾硬编码 sys.path 到 ~/research/judge-lab,于是在任何别人的机器上
+# 都造不出数据)。所以判据不是"退出码 0",是"跳过的数目等于我说好的那个数"。
+
+name: tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  core:
+    name: 核心(不含 reef)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+      - name: 装依赖(忽略指向 ../reef 的本地 source)
+        run: uv sync --no-sources
+      - name: 造任务数据
+        # 这一步能在干净 checkout 上跑通,本身就是一条判据:make_tasks.py 不许再
+        # 依赖仓外的任何路径。它一旦又长出跨仓 import,这里会直接失败。
+        run: uv run --no-sources python tasks/make_tasks.py
+      - name: 跑测试
+        run: uv run --no-sources pytest -q --junit-xml=report.xml
+      - name: 检查跳过数
+        # 15 = 需要 reef_client / reef.train 的那些(test_relay_commands 11、
+        # test_selection 4)。这个数是**确切值**不是上界:它变了就该来看一眼是
+        # 多了新的 reef 依赖,还是有测试悄悄消失了。
+        run: uv run --no-sources python scripts/check_skips.py report.xml --max-skipped 15
+
+  with-reef:
+    name: 全量(含 reef)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: clone reef 到 ../reef
+        # pyproject 的 [tool.uv.sources] 期望它在这里。浅克隆:只要能 import。
+        run: git clone --depth 1 https://github.com/Human-Agent-Society/reef.git ../reef
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+      - name: 装依赖(含 reef)
+        run: uv sync --group reef
+      - name: 造任务数据
+        run: uv run python tasks/make_tasks.py
+      - name: 跑测试
+        run: uv run pytest -q --junit-xml=report.xml
+      - name: 检查跳过数(必须 0)
+        run: uv run python scripts/check_skips.py report.xml --max-skipped 0
+      - name: 上传测试报告
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: junit-report
+          path: report.xml
