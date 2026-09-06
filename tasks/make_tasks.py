@@ -7,14 +7,36 @@
 from __future__ import annotations
 
 import json
-import sys
 from pathlib import Path
 
 import numpy as np
 from PIL import Image
 
-sys.path.insert(0, str(Path.home() / "research" / "judge-lab"))
-from judgelab.domains.color.synth import gen_test_image  # noqa: E402  合成底图(替身;真数据接 UIEB/CleanBench)
+
+def gen_test_image(rng: np.random.Generator, size: int = 256) -> np.ndarray:
+    """合成底图:梯度背景 + 8 个随机色块,直方图够丰富,四个诊断读数都测得动。
+
+    2026-09-06 从 judge-lab 内联进来(原 `judgelab.domains.color.synth.gen_test_image`)。
+    一起去掉的是 `sys.path.insert(0, Path.home() / "research" / "judge-lab")`:那条硬编码的
+    跨仓路径让这个仓**在别人的机器上和 CI 里都造不出数据**,而 `tasks/data/` 是 gitignored
+    的,依赖 manifest 的测试于是静默 skip 掉 —— 不是变红,是消失,更难发现。
+
+    内联版与原实现**逐字节一致**已验证:6 组 (seed x size) 加同一个 rng 上连续 5 次调用,
+    `np.array_equal` 全部 True。所以 2026-09-03~09-04 那批实测数字与新生成的数据仍可比。
+    真数据接 UIEB/CleanBench 时替换这一个函数即可,manifest schema 不变。
+    """
+    yy, xx = np.mgrid[0:size, 0:size].astype(np.float64) / size
+    base = np.stack(
+        [0.25 + 0.5 * xx, 0.25 + 0.5 * yy, 0.35 + 0.3 * (xx + yy) / 2], axis=-1
+    )
+    for _ in range(8):
+        cx, cy = rng.uniform(0, size, 2)
+        r = rng.uniform(size * 0.05, size * 0.22)
+        color = rng.uniform(0.05, 0.95, 3)
+        mask = (yy * size - cy) ** 2 + (xx * size - cx) ** 2 < r**2
+        base[mask] = color
+    return (base * 255).astype(np.uint8)
+
 
 OUT = Path(__file__).parent / "data"
 
