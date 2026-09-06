@@ -4,6 +4,7 @@
   restore doctor                        逐个验证声明的工具是否真能跑(声明 != 可用)
   restore diagnose IN                   退化诊断 JSON(现在是启发式;以后换 VLM/IQA,接口不变)
   restore run TOOL IN OUT               跑一个工具;按 (tool, 输入内容哈希) 缓存,同序列不重跑
+  restore submit OUT                    显式交卷:判这一张。不交则退回最后一步(并记下"没交")
   restore score IN OUT [--ref REF]      打分并写 verifier 记录;stdout 最后一行 `REEF_SCORE=<float>`
 
 设计约束(与 reef episode 机制对齐):
@@ -101,6 +102,54 @@ def _luminance(img_u8: np.ndarray) -> np.ndarray:
 
 
 def diagnose_array(img: np.ndarray) -> dict:
+    """退化诊断。按消融配置分发:默认 v1(解耦),`diagnosis=coupled_v0` 走修复前那版。
+
+    保留 v0 不是为了兼容 —— 是因为"观测互相污染值多少可达分数"这个问题,只有把
+    坏的那版留在手边才答得出来。两版输出同一个 JSON 形状,`diagnoser` 字段区分。
+    """
+    import os
+
+    if os.environ.get("RESTORE_ABLATION", "").find("diagnosis=coupled_v0") >= 0:
+        return _diagnose_v0_coupled(img)
+    return _diagnose_v1_decoupled(img)
+
+
+def _diagnose_v0_coupled(img: np.ndarray) -> dict:
+    """修复前的诊断。**消融臂,不要拿它跑基线。**
+
+    四个读数在原图上各自算统计量,于是互相污染(2026-09-03 实测):同一张图同样的
+    雾,只是加了暗光,雾读数就从 0.725 掉到 0.065(掉 91%);而 `blur` 在**干净参考
+    图上就读 0.912** —— 它测的其实是"梯度能量低",在任何不带噪声的图上都成立,所以
+    它是个反噪声读数,不是模糊读数。
+
+    行为侧后果也测过:agent 唯一的观测是这个,于是把从不出现在任何最优链里的锐化
+    用成了第二常用工具(23.7%),而含雾题最优链的第一步去雾只占 9.2%。
+
+    数值与 3847ed5^ 完全一致,原样搬过来,不做任何"顺手的改进" —— 一改就不是对照了。
+    """
+    from PIL import ImageFilter
+
+    x = img.astype(np.float64) / 255.0
+    lum = x @ np.array([0.299, 0.587, 0.114])
+    dark = x.min(axis=2)
+    # 雾:暗通道整体偏高 + 全局对比度低
+    haze = float(np.clip((dark.mean() - 0.15) / 0.5, 0, 1)) * float(np.clip(1.0 - lum.std() / 0.25, 0, 1))
+    # 低光:亮度均值低
+    low_light = float(np.clip((0.35 - lum.mean()) / 0.35, 0, 1))
+    # 噪声:中值残差
+    med = np.asarray(Image.fromarray(img).filter(ImageFilter.MedianFilter(3))).astype(np.float64) / 255.0
+    noise = float(np.clip(np.abs(x - med).mean() / 0.04, 0, 1))
+    # 模糊:梯度能量低
+    gy, gx = np.gradient(lum)
+    blur = float(np.clip(1.0 - np.sqrt(gx**2 + gy**2).mean() / 0.05, 0, 1))
+    return {
+        "degradations": {"haze": round(haze, 3), "low_light": round(low_light, 3), "noise": round(noise, 3), "blur": round(blur, 3)},
+        "stats": {"lum_mean": round(float(lum.mean()), 3), "lum_std": round(float(lum.std()), 3), "dark_channel_mean": round(float(dark.mean()), 3)},
+        "diagnoser": "heuristic-v0-coupled",
+    }
+
+
+def _diagnose_v1_decoupled(img: np.ndarray) -> dict:
     """退化诊断:四个 0–1 强度,不做硬分类——让 agent 自己决策。
     以后换 VLM/专用诊断模型时保持同一 JSON 形状。
 
@@ -388,6 +437,34 @@ def cmd_run(tool: str, inp: Path, out: Path) -> int:
     return 0
 
 
+# ---------------- submit ----------------
+
+def cmd_submit(path: Path) -> int:
+    """`restore submit OUT` —— agent 显式声明"我做完了,判这一张"。
+
+    在此之前判分取的是**最后一次成功的 `restore run`**,也就是把"停手"当成
+    "不再发命令"的副作用。那让两件事无法分开:
+
+      * 它认为这一步是最好的,所以停了
+      * 它还想继续,但轮次用完了 / 它跑偏了 / 它把图弄坏了还没发现
+
+    而 2026-09-04 穷举 3096 个决策点得到的结论正是:**不知道该在哪停,值 23% 的
+    可达分数**(12 题贪心合计 5.6092,同一轨迹上出现过的最高分合计 7.2625;
+    `noise_01` 走到过 0.8276 最后停在 0.0568)。一个只能被动观察的行为没法要求
+    agent 改进它,所以这里把它变成一个动作:agent 必须说出"停在这一张"。
+
+    不提交也是数据 —— judge 会退回最后一步并把这件事记下来,于是"主动提交率"
+    和"提交的那一步是不是轨迹上最好的一步"都变成可以直接量的东西。
+    """
+    if not path.exists():
+        print(json.dumps({"status": "no_such_output", "path": str(path)}), file=sys.stderr)
+        return 1
+    sha = _sha(path)
+    _trace({"kind": "submit", "output_sha": sha, "path": str(path)})
+    print(json.dumps({"status": "submitted", "output_sha": sha, "path": str(path)}, ensure_ascii=False))
+    return 0
+
+
 # ---------------- doctor ----------------
 
 def check_tool(name: str, spec: dict) -> tuple[bool, str]:
@@ -524,6 +601,8 @@ def main(argv: list[str]) -> int:
         return cmd_catalog()
     if cmd == "doctor":
         return cmd_doctor()
+    if cmd == "submit" and len(args) == 1:
+        return cmd_submit(Path(args[0]))
     if cmd == "diagnose" and len(args) == 1:
         return cmd_diagnose(Path(args[0]))
     if cmd == "run" and len(args) == 3:

@@ -103,5 +103,53 @@ class SignTestSelector:
         )
 
 
+class WinsOverLossesSelector:
+    """reef 自带的规则:胜数 > 负数就发布。**只为消融对照存在。**
+
+    候选与现版毫无差别时,每次逐题比较就是一次抛硬币,而"正面比反面多"的概率
+    恰好是 1/2 —— 所以这条规则的假阳性率是 50%,与重复多少次无关。它不是"宽松",
+    是从未定义过错误率。
+
+    独立实现一份而不是去 import reef 的类,有两个理由:口径已经在 `_tally` 里
+    复刻过(None 视为 -inf),而且这样测试不需要装 reef 就能跑对照。
+    """
+
+    def decide(self, candidate, evaluation):
+        from reef.train.evaluation.contracts import SelectionDecision  # lazy
+
+        candidate_scores = tuple(evaluation.metrics.get("candidate_scores", ()))
+        current_scores = tuple(evaluation.metrics.get("current_scores", ()))
+        wins, losses = _tally(candidate_scores, current_scores)
+        selected = wins > losses
+        reason = f"wins>losses: {wins} vs {losses} (ablation arm; false-positive rate 50% by construction)"
+        log.info("gate[ablation]: %s -> %s", reason, "select" if selected else "reject")
+        return SelectionDecision(
+            outcome="select" if selected else "reject",
+            policy="wins_over_losses",
+            policy_version="ablation",
+            reason=reason,
+            evaluation=evaluation,
+            # 刻意也报 p 值:同一份数据在受控判据下**本来**是什么结论,要能直接对照。
+            metrics={
+                "wins": wins, "losses": losses, "n": wins + losses,
+                "p_value": p_value(wins, wins + losses),
+            },
+        )
+
+
+def build_selector():
+    """按消融配置选闸门。默认 sign_test。
+
+    在 import 时求值一次(serve.yaml 指向下面的 `selector`),所以一次实验只有一个
+    配置 —— 那正是想要的:一份结果对应一个明确的闸门,不会跑到一半换了判据。
+    """
+    from .ablation import current
+
+    if current().gate == "wins_over_losses":
+        log.warning("gate: 消融臂 wins_over_losses(假阳性率 50%),不是默认判据")
+        return WinsOverLossesSelector()
+    return SignTestSelector(alpha=0.10)
+
+
 #: serve.yaml 的 `evolution.selection` 指向它。
-selector = SignTestSelector(alpha=0.10)
+selector = build_selector()

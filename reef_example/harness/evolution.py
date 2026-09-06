@@ -366,10 +366,14 @@ def _score_output(tid: str, image_path) -> float:
         # writes this file before any episode runs, so a miss means the file was
         # not materialized, the task id drifted, or the json is corrupt. All
         # three are loud problems.
+        # 刻意**不**走 measurement_failure 开关:参考图查不到是这套装置自己没配好,
+        # 不是"真实系统里会发生的测量失败"。把配置错误混进实验变量,会让消融那张表
+        # 里多出一份来路不明的噪声,而且是永远查不出来的那种。
         raise RuntimeError(
             f"evaluate[{tid}]: no reference for this task in {refs_file} ({exc!r}). "
             f"materialize.py writes it before the run; a miss means it was not materialized, "
-            f"the task id drifted, or the file is corrupt - none of which is a score of 0.0."
+            f"the task id drifted, or the file is corrupt - none of which is a score of 0.0. "
+            f"(This is a wiring error, not a measurement failure: the ablation switch does not apply.)"
         ) from exc
     proc = subprocess.run(
         ["restore", "score", frame["input"], str(image_path), "--ref", frame["reference"]],
@@ -379,16 +383,23 @@ def _score_output(tid: str, image_path) -> float:
     score = parse_score(proc.stdout)
     if score is None:
         # The judge's own scoring subprocess failed or printed no REEF_SCORE
-        # line. That is a measurement failure on *this* side of the protocol,
-        # so it must not be reported as the episode's performance: the gate
+        # line: a measurement failure on *this* side of the protocol. The gate
         # cannot tell "the judge broke" from "the agent achieved nothing", and
-        # it will publish or reject on the difference. reef keeps the exception
-        # loud (`_score_episode` sits outside `_run_and_score`'s try, and the
-        # trainer re-raises after `abort_step`), so raising aborts the step
-        # instead of silently poisoning it.
-        raise RuntimeError(
-            f"evaluate[{tid}]: judge scoring failed (exit={proc.returncode}, no REEF_SCORE line). "
-            f"stderr/stdout: {(proc.stderr or proc.stdout)[:300]!r}"
+        # it publishes or rejects on the difference.
+        #
+        # Default (`measurement_failure=raise`) aborts the step - reef keeps the
+        # exception loud, since `_score_episode` sits outside `_run_and_score`'s
+        # try and the trainer re-raises after `abort_step`. The other three
+        # encodings exist only as the experimental arm: each reproduces what a
+        # published system actually does here (zero / exclude / guess), so the
+        # cost of each can be measured against the exhaustive ceiling.
+        from .scoring import encode_measurement_failure
+
+        return encode_measurement_failure(
+            f"judge scoring failed (exit={proc.returncode}, no REEF_SCORE line): "
+            f"{(proc.stderr or proc.stdout)[:200]!r}",
+            tid,
+            seed_key=str(image_path),
         )
     return score
 
