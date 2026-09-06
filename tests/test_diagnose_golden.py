@@ -37,9 +37,23 @@ from toolbox.cli import diagnose_array  # noqa: E402
 
 GOLDEN = Path(__file__).parent / "data" / "diagnose_golden.json"
 
-#: 容差。算子确定性、底图由固定 seed 生成,所以差异只可能来自浮点累积;
-#: 定在 0.002 而不是更松,是因为**松容差会把真实的口径变更放过去**,那就白钉了。
-TOL = 0.002
+#: 平台噪声的实测上限。第一版把容差定在 0.002,理由是"算子确定性、底图 seed 固定,
+#: 差异只可能来自浮点累积" —— 在这台 mac 上完全成立,推上去 CI 立刻红:
+#: macOS arm64 与 Linux x86_64 之间 blur 差 0.0130、haze 差 0.0030、low_light 差 0.0050。
+#: 又一次"本地绿不算绿",这回栽的是我自己定的判据。
+PLATFORM_NOISE_CEILING = 0.0130
+
+#: 一次真实口径变更的信号强度,实测:把 lowlight_gamma 的 target_mean 从 0.45 改成 0.50,
+#: 七个读数发生变化,最大的一项(haze_low_light.haze)差 0.1100。
+KNOWN_DRIFT_SIGNAL = 0.1100
+
+#: 容差落在噪声与信号之间。**这个数是量出来的,不是拍的**:0.02 之上是平台差异,
+#: 之下是真实漂移。那次变异在 0.02 下仍有 3 项变红,报警足够。
+#:
+#: 逐 case 的判别力并不均匀,得说清楚:haze_low_light.haze 是 0.003 噪声对 0.110 信号
+#: (37 倍,很稳),而 blur_060.blur 是 0.013 噪声对 0.025 信号(不到 2 倍,勉强)。
+#: 所以这条判据靠的是**多个 case 一起看**,不是任何单独一项。
+TOL = 0.02
 
 
 def _haze(x, t, rng):
@@ -91,6 +105,26 @@ def _golden() -> dict:
     return json.loads(GOLDEN.read_text())
 
 
+def test_tolerance_still_discriminates():
+    """元判据:容差必须落在实测的噪声与信号之间。
+
+    这条测试存在的唯一理由,是**挡住将来的自己**。上面那条判据一旦在别的机器上
+    偶发地红,最省事的做法就是把 TOL 调大到不红为止 —— 而 TOL 一旦越过
+    KNOWN_DRIFT_SIGNAL,整个文件就变成了一个永远绿的摆设,比没有更糟:它看起来
+    在守着口径,实际上什么都不守。
+
+    两个边界都是实测值(来源见上面的注释),改它们之前先重新量。
+    """
+    assert PLATFORM_NOISE_CEILING < TOL, (
+        f"TOL={TOL} 不高于实测平台噪声 {PLATFORM_NOISE_CEILING},换台机器就会假红"
+    )
+    assert TOL < KNOWN_DRIFT_SIGNAL, (
+        f"TOL={TOL} 已经不低于已知的真实漂移 {KNOWN_DRIFT_SIGNAL} —— "
+        f"这条判据再也抓不到它本来要抓的东西了。不要为了变绿走到这一步:"
+        f"先确认是不是真的口径变了,是就 --regen 并写明历史数字作废。"
+    )
+
+
 def test_golden_file_covers_every_case():
     """判据先要证明自己在看东西:少一个 case 就等于少一份保护,而那不会让别的测试变红。"""
     recorded = set(_golden()["readings"])
@@ -110,7 +144,8 @@ def test_readings_match_the_recorded_calibration(name, chain):
             f"如果你刚改了 dcp_estimate / dehaze_dcp / lowlight_gamma 或 diagnose 本身,这就是口径变更:\n"
             f"  1. `uv run python tests/test_diagnose_golden.py --regen` 重新记录\n"
             f"  2. 在 commit 里写明哪一批历史数字因此不可比\n"
-            f"不要靠调大 TOL 让它变绿 —— 那正好把这条判据要抓的东西放过去。"
+            f"如果是换了机器/架构导致的偶发小差(实测跨平台上限 {PLATFORM_NOISE_CEILING}),"
+            f"那也不要直接调大 TOL —— 先重新量平台噪声和漂移信号,确认容差仍落在两者之间。"
         )
 
 
