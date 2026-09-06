@@ -182,7 +182,7 @@ def make_dataset(
                     }
                 )
     mpath = out / "manifest.json"
-    mpath.write_text(json.dumps({"version": 1, "seed": seed, "tasks": manifest}, ensure_ascii=False, indent=2))
+    mpath.write_text(json.dumps({"version": 1, "seed": seed, "tasks": manifest}, ensure_ascii=False, indent=2), encoding="utf-8")
     return mpath
 
 
@@ -208,5 +208,5 @@ def replay_task(entry: dict) -> list[np.ndarray]:
 
 
 def load_manifest(path: Path) -> list[dict]:
-    data = json.loads(Path(path).read_text())
+    data = json.loads(Path(path).read_text(encoding="utf-8"))
     return data["tasks"] if isinstance(data, dict) else data

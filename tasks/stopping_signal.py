@@ -123,14 +123,14 @@ def main() -> None:
 
     from toolbox import builtin
 
-    registry = yaml.safe_load((ROOT / "toolbox" / "registry.yaml").read_text())["tools"]
+    registry = yaml.safe_load((ROOT / "toolbox" / "registry.yaml").read_text(encoding="utf-8"))["tools"]
     tools = {
         name: getattr(builtin, spec["backend"].split(":", 1)[1])
         for name, spec in registry.items()
         if spec["backend"].startswith("builtin:")
     }
 
-    manifest = json.loads(Path(args.manifest).read_text())
+    manifest = json.loads(Path(args.manifest).read_text(encoding="utf-8"))
     wanted = set(args.task) if args.task else None
     rows: list[dict] = []
     for task in manifest:
@@ -143,7 +143,7 @@ def main() -> None:
 
     out = Path(args.out)
     out.parent.mkdir(parents=True, exist_ok=True)
-    out.write_text(json.dumps({"depth": args.depth, "rows": rows}, indent=1) + "\n")
+    out.write_text(json.dumps({"depth": args.depth, "rows": rows}, indent=1) + "\n", encoding="utf-8")
     print(f"\n共 {len(rows)} 个决策点,{sum(r['improved'] for r in rows)} 个是「下一步变好」-> {out}")
 
 

@@ -109,7 +109,17 @@ tools:
     note: "UDR-S2Former 去雨滴;针对车载镜头雨滴"
   ridcp:
     task: defog
-    backend: "docker:jarvisir-tools ridcp"
+    # 2026-09-06 这是第一个真正接通的专家模型(在一台 8GB 显存的机器上跑起来了)。
+    # 后端定为 remote:模型要 GPU,而 GPU 未必是跑循环那台。
+    #
+    # `enabled: false` 是**默认值**,不是"没接通":工具服务不常驻,机器一关就没了,
+    # 所以"此刻能不能跑"是环境的属性而非仓库的属性。要用它:
+    #     RESTORE_TOOL_SERVER=http://<host>:8710 RESTORE_ENABLE_TOOLS=ridcp ./run.sh
+    #
+    # 实测(6 张含雾任务,对比本仓的 dehaze_dcp 替身):纯雾时 DCP 略胜(合成雾正好
+    # 满足暗通道假设),但复合退化时 DCP **全是负增益**——它在低光下把图弄更暗、
+    # 在噪声上放大成彩噪。合计 DCP -1.351 dB vs RIDCP +17.068 dB。
+    backend: "remote:ridcp"
     cost: 8
     enabled: false
     note: "RIDCP 码本先验去雾(JarvisIR 专家);真实雾比 DCP 强"

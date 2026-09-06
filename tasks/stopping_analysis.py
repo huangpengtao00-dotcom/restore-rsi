@@ -44,7 +44,7 @@ def signals(row: dict) -> dict[str, float]:
 
 def main() -> None:
     path = Path(sys.argv[1] if len(sys.argv) > 1 else "work/stopping_d3.json")
-    data = json.loads(path.read_text())
+    data = json.loads(path.read_text(encoding="utf-8"))
     rows = data["rows"]
     labels = [r["improved"] for r in rows]
     base = sum(labels) / len(labels)
@@ -113,10 +113,10 @@ def greedy_simulation(depth: int, tau_values, tasks=None) -> None:
     from toolbox import builtin
     from toolbox.cli import _psnr, diagnose_array, reference_score
 
-    registry = yaml.safe_load((root / "toolbox" / "registry.yaml").read_text())["tools"]
+    registry = yaml.safe_load((root / "toolbox" / "registry.yaml").read_text(encoding="utf-8"))["tools"]
     tools = {n: getattr(builtin, sp["backend"].split(":", 1)[1])
              for n, sp in registry.items() if sp["backend"].startswith("builtin:")}
-    manifest = json.loads((root / "tasks" / "data" / "manifest.json").read_text())
+    manifest = json.loads((root / "tasks" / "data" / "manifest.json").read_text(encoding="utf-8"))
     if tasks:
         manifest = [t for t in manifest if t["task_id"] in tasks]
 

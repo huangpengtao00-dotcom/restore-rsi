@@ -126,7 +126,7 @@ def load_ceilings() -> tuple[dict[str, float], int | None]:
         print(f"  no oracle at {path}: 「失败」退回绝对阈值 data.max_score,"
               f"而各题上界并不同量级 —— 跑 tasks/oracle_chains.py 生成它")
         return {}, None
-    report = json.loads(path.read_text())
+    report = json.loads(path.read_text(encoding="utf-8"))
     ceilings = {tid: entry["best_score"] for tid, entry in report["tasks"].items()}
     depth = report.get("depth")
     print(f"  ceilings from {path.name}: {len(ceilings)} tasks, depth<={depth}, "
@@ -135,12 +135,12 @@ def load_ceilings() -> tuple[dict[str, float], int | None]:
 
 
 def main() -> None:
-    config = yaml.safe_load((HERE / "serve.yaml").read_text())
+    config = yaml.safe_load((HERE / "serve.yaml").read_text(encoding="utf-8"))
     restore = config["restore"]
     manifest_path = (HERE / restore["manifest"]).resolve()
     if not manifest_path.exists():
         sys.exit(f"missing {manifest_path}: run `uv run python tasks/make_tasks.py` first")
-    by_id = {task["task_id"]: task for task in json.loads(manifest_path.read_text())}
+    by_id = {task["task_id"]: task for task in json.loads(manifest_path.read_text(encoding="utf-8"))}
     missing = [task_id for task_id in restore["task_ids"] if task_id not in by_id]
     if missing:
         sys.exit(f"task ids not in manifest: {missing}")
@@ -185,16 +185,16 @@ def main() -> None:
         recipe["data"] = {**recipe["data"], "max_score": float(override)}
         print(f"  data.max_score overridden to {override} (RESTORE_MAX_SCORE)")
     (work / "recipes").mkdir(parents=True, exist_ok=True)
-    (work / "recipes" / "harness_evolve.yaml").write_text(yaml.safe_dump(recipe, sort_keys=False, allow_unicode=True))
+    (work / "recipes" / "harness_evolve.yaml").write_text(yaml.safe_dump(recipe, sort_keys=False, allow_unicode=True), encoding="utf-8")
     # Two lists, deliberately different. `evolution.tasks` (in the recipe) carries
     # the repeats, because that is the evaluation. run.py's record pass wants each
     # task once - it is generating failing traffic to batch on, not measuring - so
     # tasks.json stays unique. Feeding it the repeated list would fire `repeats`
     # times as many evolve steps for no added information.
     unique = tasks[:: max(1, repeats)]
-    (work / "tasks.json").write_text(json.dumps(unique, indent=2, ensure_ascii=False) + "\n")
-    (work / "task_refs.json").write_text(json.dumps(refs, indent=2) + "\n")
-    (work / "task_map.json").write_text(json.dumps(mapping, indent=2) + "\n")
+    (work / "tasks.json").write_text(json.dumps(unique, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+    (work / "task_refs.json").write_text(json.dumps(refs, indent=2) + "\n", encoding="utf-8")
+    (work / "task_map.json").write_text(json.dumps(mapping, indent=2) + "\n", encoding="utf-8")
     print(f"materialized {len(tasks)} entries ({len(mapping)} tasks x {repeats} repeats) -> {work / 'recipes' / 'harness_evolve.yaml'}, {work / 'tasks.json'}")
     for prompt_id, task_id in mapping.items():
         print(f"  {prompt_id} = {task_id}")

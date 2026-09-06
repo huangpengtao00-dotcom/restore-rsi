@@ -182,3 +182,38 @@ def test_every_tool_in_the_prompt_can_actually_run():
         if not ok:
             broken.append((name, why))
     assert not broken, f"prompt 里列了跑不了的工具:{broken}"
+
+
+# ------------------------------------------------- 运行时启用覆盖
+
+def test_enable_override_adds_a_declared_tool(monkeypatch):
+    """`enabled` 是仓库的默认值,`RESTORE_ENABLE_TOOLS` 是这台机器此刻的情况。
+
+    分开的理由:专家模型装在特定机器上,服务不常驻,机器一关就没了。把
+    `enabled: true` 提交进仓等于宣称所有人随时能跑它 —— CI 会永远红,而"启用
+    即可跑"那条不变量就只能被删掉。仓库说默认,环境说此刻。
+    """
+    assert "ridcp" not in cli._enabled_registry()
+    monkeypatch.setenv("RESTORE_ENABLE_TOOLS", "ridcp")
+    assert "ridcp" in cli._enabled_registry()
+
+
+def test_enable_override_refuses_an_unknown_name(monkeypatch):
+    """拼错一个名字就静默少启用一个,而症状只是 agent「好像没用那个工具」。"""
+    monkeypatch.setenv("RESTORE_ENABLE_TOOLS", "ridcpp")
+    with pytest.raises(ValueError, match="不存在的工具"):
+        cli._enabled_registry()
+
+
+def test_repo_default_keeps_ci_green():
+    """默认状态下不能有任何需要外部服务的工具是启用的。
+
+    这条是给未来的自己:接通一个模型之后顺手把 enabled 改成 true 提交上去,
+    是非常自然的动作,而后果要到 CI 红了才发现。
+    """
+    for name, spec in cli._enabled_registry().items():
+        backend = spec.get("backend", "")
+        assert backend.startswith("builtin:"), (
+            f"{name} 默认启用却是 {backend} —— 需要外部服务的工具不能默认启用,"
+            f"用 RESTORE_ENABLE_TOOLS 在运行时开"
+        )

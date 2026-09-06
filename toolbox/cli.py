@@ -38,7 +38,7 @@ EPISODE_ID = os.environ.get("RESTORE_EPISODE_ID", "adhoc")
 
 def _registry() -> dict:
     """全部工具,含未启用的。只有 `doctor` 和错误信息该用这个。"""
-    return yaml.safe_load((HERE / "registry.yaml").read_text())["tools"]
+    return yaml.safe_load((HERE / "registry.yaml").read_text(encoding="utf-8"))["tools"]
 
 
 def _enabled_registry() -> dict:
@@ -48,8 +48,29 @@ def _enabled_registry() -> dict:
     JarvisIR 把 restormer 放进 ALL_TOOLS 却没有它的执行分支,选中它只会
     `print` 一句然后 `continue`,链照常走完、reward 照常算,两种情况在
     训练信号里长得一模一样。
+
+    registry 里的 `enabled` 是**默认值**,`RESTORE_ENABLE_TOOLS` 在运行时覆盖它:
+
+        RESTORE_TOOL_SERVER=http://<host>:8710 RESTORE_ENABLE_TOOLS=ridcp ./run.sh
+
+    为什么要分开:专家模型的可用性是**这台机器此刻**的属性,不是仓库的属性。
+    RIDCP 装在一台特定的机器上,那台机器关机服务就没了 —— 把 `enabled: true`
+    提交进仓,等于宣称所有人随时都能跑它,于是 CI 永远红,而"启用即可跑"那条
+    不变量就只能被删掉。真正该做的是让仓库说默认情况,让环境说此刻的情况。
     """
-    return {name: spec for name, spec in _registry().items() if spec.get("enabled", True)}
+    override = {t.strip() for t in os.environ.get("RESTORE_ENABLE_TOOLS", "").split(",") if t.strip()}
+    registry = _registry()
+    unknown = override - set(registry)
+    if unknown:
+        # 拼错一个工具名就静默少启用一个,而症状只是 agent "好像没用那个工具"
+        raise ValueError(
+            f"RESTORE_ENABLE_TOOLS 里有注册表中不存在的工具:{sorted(unknown)};"
+            f"已知:{sorted(registry)}"
+        )
+    return {
+        name: spec for name, spec in registry.items()
+        if name in override or spec.get("enabled", True)
+    }
 
 
 def _sha(path: Path) -> str:
@@ -584,7 +605,7 @@ def cmd_score(inp: Path, out: Path, ref: Path | None) -> int:
         score = float(np.clip(0.5 + improve, 0, 1))
         record.update({"mode": "no_reference", "before": before, "after": after, "score": round(score, 4), "reliability": "low"})
     RESULTS_DIR.mkdir(parents=True, exist_ok=True)
-    (RESULTS_DIR / f"{EPISODE_ID}.verdict.json").write_text(json.dumps(record, ensure_ascii=False, indent=2))
+    (RESULTS_DIR / f"{EPISODE_ID}.verdict.json").write_text(json.dumps(record, ensure_ascii=False, indent=2), encoding="utf-8")
     (RESULTS_DIR / f"{EPISODE_ID}.output.png").write_bytes(out.read_bytes())
     _trace({"kind": "score", **{k: v for k, v in record.items() if k in ("mode", "score", "psnr")}})
     print(json.dumps(record, ensure_ascii=False))

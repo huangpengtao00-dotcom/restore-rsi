@@ -90,7 +90,7 @@ def _tool_names() -> set[str]:
     executed as a tool literally named TOOL."""
     import yaml
 
-    return set(yaml.safe_load(REGISTRY_FILE.read_text())["tools"])
+    return set(yaml.safe_load(REGISTRY_FILE.read_text(encoding="utf-8"))["tools"])
 
 
 def _restore(args: list[str], cwd: Path, env: dict) -> subprocess.CompletedProcess:
@@ -225,8 +225,8 @@ def main() -> None:
     parser.add_argument("--limit", type=int, default=None, help="record only the first N tasks")
     args = parser.parse_args()
 
-    tasks = json.loads(TASKS_FILE.read_text())[: args.limit]
-    refs = json.loads(REFS_FILE.read_text())
+    tasks = json.loads(TASKS_FILE.read_text(encoding="utf-8"))[: args.limit]
+    refs = json.loads(REFS_FILE.read_text(encoding="utf-8"))
     client = ReefClient(SERVICE_URL, token=TOKEN, timeout_s=600.0)
     log_path = WORK / "run.log"
     log_path.parent.mkdir(exist_ok=True)
@@ -303,7 +303,7 @@ def main() -> None:
     log(json.dumps(manifest["gate"], indent=2, sort_keys=True, default=str))
     out_dir = WORK / "evolved_skills"
     out_dir.mkdir(exist_ok=True)
-    (out_dir / "manifest.json").write_text(json.dumps(manifest, indent=2, default=str))
+    (out_dir / "manifest.json").write_text(json.dumps(manifest, indent=2, default=str), encoding="utf-8")
     log("evolved skill files:")
     for path, text in sorted(manifest["files"].items()):
         if "/skills/" in path:
@@ -311,7 +311,7 @@ def main() -> None:
             log(text)
             target = out_dir / path
             target.parent.mkdir(parents=True, exist_ok=True)
-            target.write_text(text)
+            target.write_text(text, encoding="utf-8")
 
 
 if __name__ == "__main__":

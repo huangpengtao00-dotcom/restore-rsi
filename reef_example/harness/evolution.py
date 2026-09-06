@@ -81,7 +81,7 @@ def replay_trajectory(episode_id: str, limit: int = 8) -> list[dict]:
 
     trace = _results_dir() / "trace.jsonl"
     try:
-        lines = trace.read_text().splitlines()
+        lines = trace.read_text(encoding="utf-8").splitlines()
     except OSError:
         return []
     readings: dict[str, dict] = {}
@@ -304,7 +304,7 @@ def _final_output_sha(episode_id: str) -> str | None:
     trace = _results_dir() / "trace.jsonl"
     last = None
     try:
-        lines = trace.read_text().splitlines()
+        lines = trace.read_text(encoding="utf-8").splitlines()
     except OSError:
         return None
     for line in lines:
@@ -364,7 +364,7 @@ def _score_output(tid: str, image_path) -> float:
 
     refs_file = _work_dir() / "task_refs.json"
     try:
-        frame = _json.loads(refs_file.read_text())[tid]
+        frame = _json.loads(refs_file.read_text(encoding="utf-8"))[tid]
     except (OSError, KeyError, ValueError) as exc:
         # Same class of bug as the phantom episode id (see _episode_id): "I have
         # no reference for this task" is a wiring failure, not "this episode

@@ -86,7 +86,7 @@ def main() -> None:
 
     from toolbox import builtin
 
-    registry = yaml.safe_load((ROOT / "toolbox" / "registry.yaml").read_text())["tools"]
+    registry = yaml.safe_load((ROOT / "toolbox" / "registry.yaml").read_text(encoding="utf-8"))["tools"]
     tools = {
         name: getattr(builtin, spec["backend"].split(":", 1)[1])
         for name, spec in registry.items()
@@ -94,7 +94,7 @@ def main() -> None:
     }
     print(f"tools: {', '.join(sorted(tools))} (depth <= {args.depth})")
 
-    manifest = json.loads(Path(args.manifest).read_text())
+    manifest = json.loads(Path(args.manifest).read_text(encoding="utf-8"))
     wanted = set(args.task) if args.task else None
     report = {"depth": args.depth, "tools": sorted(tools), "tasks": {}}
     for task in manifest:
@@ -116,7 +116,7 @@ def main() -> None:
 
     out = Path(args.out)
     out.parent.mkdir(parents=True, exist_ok=True)
-    out.write_text(json.dumps(report, indent=2) + "\n")
+    out.write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")
     print(f"-> {out}")
 
 

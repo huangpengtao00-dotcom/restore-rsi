@@ -64,10 +64,10 @@ def make(n_per_combo: int = 2, seed: int = 0) -> Path:
                     "gt": {"applied_order": list(combo), "strengths": strengths},
                 }
             )
-    (OUT / "manifest.json").write_text(json.dumps(manifest, ensure_ascii=False, indent=2))
+    (OUT / "manifest.json").write_text(json.dumps(manifest, ensure_ascii=False, indent=2), encoding="utf-8")
     return OUT / "manifest.json"
 
 
 if __name__ == "__main__":
     p = make()
-    print(p, len(json.loads(p.read_text())), "tasks")
+    print(p, len(json.loads(p.read_text(encoding="utf-8"))), "tasks")
