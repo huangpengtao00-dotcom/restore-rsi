@@ -1,0 +1,28 @@
+cff-version: 1.2.0
+title: >-
+  restore-rsi: auditing the selection gate of a self-improving
+  image-restoration agent
+message: If you use this software or its findings, please cite it.
+type: software
+authors:
+  - family-names: Huang
+    given-names: Pengtao
+repository-code: https://github.com/huangpengtao00-dotcom/restore-rsi
+license: MIT
+date-released: '2026-09-06'
+keywords:
+  - self-improving agents
+  - agent evaluation
+  - reward model reliability
+  - image restoration
+  - negative results
+abstract: >-
+  A JarvisIR-style image-restoration toolbox wired into reef's harness-evolution
+  loop, and a measurement of the loop's own evaluation machinery. Three findings:
+  the stock selection rule ("more wins than losses") has a 50% false-positive
+  rate independent of repeats, so none of the skills it published survive a sign
+  test; the diagnosis and reward defects that looked like policy noise are
+  fixable and their repair moves tool usage toward the optimal chains; and the
+  real bottleneck is knowing when to stop, worth 23% of the reachable score,
+  with a ten-line deterministic greedy rule outperforming the LLM agent on every
+  evaluation task while never collapsing to zero. CPU-only, no GPU.
