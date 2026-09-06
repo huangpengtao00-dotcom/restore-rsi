@@ -297,8 +297,19 @@ def _score_output(tid: str, image_path) -> float:
     try:
         frame = _json.loads(refs_file.read_text())[tid]
     except (OSError, KeyError, ValueError) as exc:
-        log.warning("evaluate[%s]: no reference in %s (%s) -> 0.0", tid, refs_file, exc)
-        return 0.0
+        # Same class of bug as the phantom episode id (see _episode_id): "I have
+        # no reference for this task" is a wiring failure, not "this episode
+        # restored nothing". Returning 0.0 hands the gate a real score, and a
+        # score of 0.0 decides wins and losses - on 2026-09-03 both `select`
+        # verdicts turned on a task that scored exactly 0.0. materialize.py
+        # writes this file before any episode runs, so a miss means the file was
+        # not materialized, the task id drifted, or the json is corrupt. All
+        # three are loud problems.
+        raise RuntimeError(
+            f"evaluate[{tid}]: no reference for this task in {refs_file} ({exc!r}). "
+            f"materialize.py writes it before the run; a miss means it was not materialized, "
+            f"the task id drifted, or the file is corrupt - none of which is a score of 0.0."
+        ) from exc
     proc = subprocess.run(
         ["restore", "score", frame["input"], str(image_path), "--ref", frame["reference"]],
         capture_output=True, text=True, timeout=120, check=False,
@@ -306,8 +317,18 @@ def _score_output(tid: str, image_path) -> float:
     )
     score = parse_score(proc.stdout)
     if score is None:
-        log.warning("evaluate[%s]: judge scoring failed: %s", tid, (proc.stderr or proc.stdout)[:200])
-        return 0.0
+        # The judge's own scoring subprocess failed or printed no REEF_SCORE
+        # line. That is a measurement failure on *this* side of the protocol,
+        # so it must not be reported as the episode's performance: the gate
+        # cannot tell "the judge broke" from "the agent achieved nothing", and
+        # it will publish or reject on the difference. reef keeps the exception
+        # loud (`_score_episode` sits outside `_run_and_score`'s try, and the
+        # trainer re-raises after `abort_step`), so raising aborts the step
+        # instead of silently poisoning it.
+        raise RuntimeError(
+            f"evaluate[{tid}]: judge scoring failed (exit={proc.returncode}, no REEF_SCORE line). "
+            f"stderr/stdout: {(proc.stderr or proc.stdout)[:300]!r}"
+        )
     return score
 
 

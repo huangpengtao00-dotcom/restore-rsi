@@ -190,7 +190,15 @@ def record_episode(tid: str, prompt: str, frame: dict, client: ReefClient, log) 
         score_run = _restore(["score", frame["input"], str(current), "--ref", frame["reference"]], cwd, env)
     score = parse_score(score_run.stdout)
     if score is None:
-        return 0.0, f"score failed: {_clip(score_run, 200)}", receipts
+        # Third of the same kind (see harness/evolution.py:_score_output): a
+        # scoring failure on *our* side is not the relay's performance. A 0.0
+        # here reports as a failing task, batches, and triggers a gated evolve
+        # step over a failure that never happened - the loop would then be
+        # learning from a broken measurement.
+        raise RuntimeError(
+            f"record[{tid}]: scoring the relay's final image failed "
+            f"(exit={score_run.returncode}, no REEF_SCORE line): {_clip(score_run, 300)!r}"
+        )
     note = f" truncated@{truncated}" if truncated else ""
     return score, f"turns={len(receipts)} chain=" + ">".join(chain) + note, receipts
 
