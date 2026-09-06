@@ -1,0 +1,54 @@
+{
+  "_why": "diagnose 在固定输入上的绝对读数。它调用 dcp_estimate/dehaze_dcp/lowlight_gamma —— 改进任何一个都会改变 agent 的观测,而现有的相对性质测试(近零/可分/单调)全都照样绿。这份值一变就红,强迫说出「这是口径变更,历史数字作废」而不是让它悄悄漂移。刻意改口径时:重新生成这份 json,并在 commit 里写明哪批历史数字因此不可比。",
+  "diagnoser": "heuristic-v1-decoupled",
+  "readings": {
+    "clean": {
+      "haze": 0.0,
+      "low_light": 0.0,
+      "noise": 0.004,
+      "blur": 0.0
+    },
+    "haze_060": {
+      "haze": 0.732,
+      "low_light": 0.0,
+      "noise": 0.003,
+      "blur": 0.0
+    },
+    "low_light_060": {
+      "haze": 0.0,
+      "low_light": 0.52,
+      "noise": 0.007,
+      "blur": 0.0
+    },
+    "noise_060": {
+      "haze": 0.0,
+      "low_light": 0.0,
+      "noise": 0.496,
+      "blur": 0.0
+    },
+    "blur_060": {
+      "haze": 0.0,
+      "low_light": 0.0,
+      "noise": 0.004,
+      "blur": 0.378
+    },
+    "haze_low_light": {
+      "haze": 0.387,
+      "low_light": 0.326,
+      "noise": 0.004,
+      "blur": 0.0
+    },
+    "low_light_noise": {
+      "haze": 0.0,
+      "low_light": 0.455,
+      "noise": 0.522,
+      "blur": 0.0
+    },
+    "haze_noise": {
+      "haze": 0.538,
+      "low_light": 0.0,
+      "noise": 0.72,
+      "blur": 0.0
+    }
+  }
+}
