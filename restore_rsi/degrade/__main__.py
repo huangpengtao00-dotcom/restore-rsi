@@ -1,7 +1,7 @@
 """CLI:
 
   python -m restore_rsi.degrade make --families night,fog,night+fog --severities 0,1,2,3,4 --n 20 --seed 0 --out tasks/data_v1
-      [--src DIR]            干净图目录(默认用 judge-lab gen_test_image 造合成底图)
+      [--src DIR]            干净图目录(默认用 restore_rsi.synth.gen_test_image 造合成底图)
       [--depth auto|synthetic|depth_anything]   雾的深度来源;auto=有 Depth-Anything-V2-Small 就用,否则合成并在 manifest 标明
       [--frames K] [--max-side 512]
   python -m restore_rsi.degrade replay --manifest tasks/data_v1/manifest.json      逐条重放并核对位级一致

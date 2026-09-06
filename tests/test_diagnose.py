@@ -82,10 +82,7 @@ def test_blur_never_fires_on_a_task_set_without_blur(readings, tasks):
 # ---------------- 契约 3:同底图上对强度单调 ----------------
 
 def _base_image() -> np.ndarray:
-    import sys
-
-    sys.path.insert(0, str(Path.home() / "research" / "judge-lab"))
-    from judgelab.domains.color.synth import gen_test_image
+    from restore_rsi.synth import gen_test_image
 
     return gen_test_image(np.random.default_rng(0), size=256)
 

@@ -1,6 +1,6 @@
 """把退化族串成任务集:底图 → 链式叠加(顺序显式)→ 落盘 + manifest;并提供逐条重放。
 
-manifest 契约(与 tasks/make_tasks.py / judge-lab 同构,按帧序列设计,单图 = 长度 1):
+manifest 契约(与 tasks/make_tasks.py 同构,按帧序列设计,单图 = 长度 1):
 {
   "task_id": "night+fog_s3_007",
   "frames": [{"input": ..., "reference": ..., "depth": ...|null}],     # 每帧一项
@@ -12,7 +12,7 @@ manifest 契约(与 tasks/make_tasks.py / judge-lab 同构,按帧序列设计,�
     "depth_source": "depth_anything_v2_small" | "synthetic" | null,
     "depth_info":  {...模型 id 或回退原因...},
     "families":  {"night": {"surrogate": false, "model": "..."}, ...},
-    "source": {"kind": "judge-lab:gen_test_image" | "dir", "name": ...}
+    "source": {"kind": "synthetic:gen_test_image" | "dir", "name": ...}
   }
 }
 重放:replay_task(entry) 用 reference + params + seeds(+ 已存深度图)重建每帧 input,位级一致。
@@ -97,10 +97,8 @@ def load_image(path: Path, max_side: int | None) -> np.ndarray:
 
 
 def gen_synthetic_base(rng: np.random.Generator, size: int) -> np.ndarray:
-    jl = Path.home() / "research" / "judge-lab"
-    if str(jl) not in sys.path:
-        sys.path.insert(0, str(jl))
-    from judgelab.domains.color.synth import gen_test_image  # noqa: E402
+    """合成底图。实现在 restore_rsi.synth —— 全仓唯一一份,不再 sys.path 注入仓外路径。"""
+    from restore_rsi.synth import gen_test_image
 
     return gen_test_image(rng, size=size)
 
@@ -139,7 +137,7 @@ def make_dataset(
                     source = {"kind": "dir", "name": p.name, "path": str(p)}
                 else:
                     clean = gen_synthetic_base(np.random.default_rng(base_seed), base_size)
-                    source = {"kind": "judge-lab:gen_test_image", "name": f"synthetic_{base_seed}"}
+                    source = {"kind": "synthetic:gen_test_image", "name": f"synthetic_{base_seed}"}
                 param_seed = derive_seed(seed, 1, ci, i)
                 params = sample_params(chain, sev, param_seed)
 
