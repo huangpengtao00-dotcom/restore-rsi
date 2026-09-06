@@ -115,7 +115,7 @@ cd reef_example && ./run.sh --limit 1
 ```text
 restore_rsi/degrade/   退化探针生成器(夜景反向 ISP、雾的大气散射、Depth-Anything;manifest 可重放)
 toolbox/               `restore` CLI —— agent 在 episode 里唯一能碰的接口
-                       catalog / diagnose / run(按内容哈希缓存)/ score
+                       catalog / diagnose / run(按内容哈希缓存)/ score / doctor
 tasks/                 任务生成、穷举上界、停手信号实验台
 tests/                 175 项;契约测试守住诊断标定常数与闸门语义
 reef_example/          接 reef 的那一层:harness/(propose + evaluate + 闸门)、run.py(中继)、
@@ -123,7 +123,42 @@ reef_example/          接 reef 的那一层:harness/(propose + evaluate + 闸�
 scripts/check_skips.py CI 闸门:跳过的测试数必须等于说好的那个数
 ```
 
-## 三条工程纪律(这个仓踩出来的)
+## 工具层:6 个能跑的,12 个在册待接
+
+`toolbox/registry.yaml` 里现在有 18 个工具:
+
+| | 数量 | 状态 |
+|---|---|---|
+| **builtin**(经典 CPU 算法) | 6 | 可跑。DCP 去雾 / gamma + CLAHE 提亮 / 双边 + 中值去噪 / unsharp 锐化 |
+| **docker**(JarvisIR 的专家模型) | 12 | 在册,`enabled: false`,等镜像和卡 |
+
+加工具只改这个 yaml,不改代码。接真模型时把 `enabled` 打开、跑 `restore doctor` 确认,
+循环那一侧什么都不用动 —— docker 后端和 builtin 一样是一进一出。
+
+**镜像契约**只有一条:读 `/work/in/input.png`,把结果写到 `/work/out/output.png`。
+宿主机的文件名不进容器,这是有意的 —— 见下面第 4 条。
+
+```bash
+restore doctor      # 逐个验证声明的工具此刻是否真能跑
+restore catalog     # agent 看到的目录,只列可跑的
+```
+
+### 为什么要有 `enabled` 和 `doctor`
+
+因为"声明了"和"能跑"是两件事,而它们的差如果不显式,就会变成训练信号里的噪声。
+
+JarvisIR 的 `ALL_TOOLS` 有 13 项,模型被告知都能选,但 `restormer` 既没有
+`process_image_with_models` 里的执行分支,也不在 `all_model_paths` 里。选中它会走
+`print(...)` + `continue`:链继续往下,最后返回一个"处理过"的路径,reward 照常计算。
+于是 **"这个工具没用" 和 "这个工具没接上" 在训练信号里完全不可区分**,而模型只会学到前者。
+
+所以这里:未启用的工具不进 `catalog`;`restore run` 调用它会**非零退出**并报
+`disabled_tool`(与打错名字的 `unknown_tool` 分开报,因为要人做的事不同);
+`tests/test_tool_registry.py` 把"启用的工具必须真能跑"钉成仓库级不变量。
+验证过它能亮红:把 `ridcp` 标成 `enabled: true`(镜像并不存在),不变量测试立刻指名它,
+`doctor` 退出码变 1。
+
+## 五条工程纪律(这个仓踩出来的)
 
 1. **不静默降级。** "我没测出来"和"它什么都没做成"是两件事,而后者是会决定胜负的真分数 ——
    2026-09-03 两次 `select` 判决都压在一道恰好 0.0 的题上,其中至少一次是测量失败。
@@ -131,10 +166,17 @@ scripts/check_skips.py CI 闸门:跳过的测试数必须等于说好的那个�
    并且同时守住反向判据:**合法的 0.0 必须仍然是 0.0**)。
 2. **判据从被测代码原样抄,不自己重推。** 天花板必须用闸门自己的度量来量,
    所以 `oracle_chains.py` 直接调 `restore score` 用的那两个函数。
-3. **测试不只会变红,它还会消失。** 干净 clone 上 `pytest -q` 曾打印
+3. **声明不等于可用,而这个差必须显式。** 见上一节:一个在册却不能跑的工具,
+   会让 agent 学到"它没用",而不是"它没接上"。
+4. **测试不只会变红,它还会消失。** 干净 clone 上 `pytest -q` 曾打印
    `144 passed, 27 skipped` 并**退出码 0** —— 因为 `tasks/data/` 是 gitignored 的生成物,
    而生成脚本曾硬编码 `sys.path` 到仓外。所以 CI 的判据不是"退出码 0",
    是"跳过的数目等于我说好的那个数"。
+5. **别让路径名替 agent 做决定。** JarvisIR 的 `process_image` 在输入图片路径里
+   grep `"fog"` / `"night"` / `"snow"` 来决定哪些工具可用,而数据集按场景命名目录是
+   常规做法 —— 于是"该用哪个工具"有一部分是路径给的,不是模型学的。这个仓为此把
+   任务 id 换成了不可读哈希(改完锐化调用从 23.7% 掉到 5.8%),docker 后端也只让
+   容器看到 `input.png`,不留第二条通道。
 
 ## 一起看
 

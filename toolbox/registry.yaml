@@ -38,9 +38,94 @@ tools:
     backend: builtin:sharpen_unsharp
     cost: 1
     note: "非锐化掩模,补细节;会放大噪声与伪影(常见刷分手段——评估器要盯)"
-  # --- 真模型插槽(有卡/有 docker 后启用,接口一致) ---
-  # ridcp:
-  #   task: defog
-  #   backend: "docker:jarvisir-tools ridcp"
-  #   cost: 8
-  #   note: "RIDCP 码本先验去雾(JarvisIR 专家)"
+
+  # ============================================================================
+  # JarvisIR 的 12 个专家模型。`enabled: false` = 声明在案但当前不可用,
+  # `restore catalog` 不列出、`restore run` 拒绝执行(而不是假装跑过)。
+  #
+  # 为什么要有这个字段:JarvisIR 的 ALL_TOOLS 里有 13 个工具,模型被告知都能选,
+  # 但 `restormer` 既没有执行分支、也不在 all_model_paths 里 —— 选中它会走
+  # `print(...)` + `continue`,链继续往下走,reward 照常算。于是训练信号里
+  # "这个工具没用" 和 "这个工具没实现" 完全不可区分。这里把这件事变成一个
+  # 显式字段,并且由 `restore doctor` 逐个验证(见下)。
+  #
+  # 有卡有镜像之后:把要用的改成 `enabled: true`,跑 `restore doctor` 确认,
+  # 循环那侧不用改任何东西 —— 接口和 builtin 一样是一进一出。
+  # ============================================================================
+
+  scunet:
+    task: denoise
+    backend: "docker:jarvisir-tools scunet"
+    cost: 8
+    enabled: false
+    note: "SCUNet 盲去噪(JarvisIR 专家);真实噪声比经典滤波强很多"
+  retinexformer_fivek:
+    task: lighten
+    backend: "docker:jarvisir-tools retinexformer_fivek"
+    cost: 8
+    enabled: false
+    note: "Retinexformer 低光增强(FiveK 权重);Retinex 分解,保色好"
+  hvicidnet:
+    task: lighten
+    backend: "docker:jarvisir-tools hvicidnet"
+    cost: 8
+    enabled: false
+    note: "HVI-CIDNet 低光增强;HVI 色彩空间,极暗场景更稳"
+  lightdiff:
+    task: lighten
+    backend: "docker:jarvisir-tools lightdiff"
+    cost: 20
+    enabled: false
+    note: "LightenDiffusion 扩散式低光增强;慢,可能改变内容"
+  idt:
+    task: derain
+    backend: "docker:jarvisir-tools idt"
+    cost: 8
+    enabled: false
+    note: "IDT 去雨(Transformer);雨纹与雨滴通用"
+  turbo_rain:
+    task: derain
+    backend: "docker:jarvisir-tools turbo_rain"
+    cost: 12
+    enabled: false
+    note: "img2img-turbo 去雨;一步扩散,生成性强、可能编内容"
+  s2former:
+    task: derain
+    backend: "docker:jarvisir-tools s2former"
+    cost: 8
+    enabled: false
+    note: "UDR-S2Former 去雨滴;针对车载镜头雨滴"
+  ridcp:
+    task: defog
+    backend: "docker:jarvisir-tools ridcp"
+    cost: 8
+    enabled: false
+    note: "RIDCP 码本先验去雾(JarvisIR 专家);真实雾比 DCP 强"
+  kanet:
+    task: defog
+    backend: "docker:jarvisir-tools kanet"
+    cost: 8
+    enabled: false
+    note: "KANet 去雾;浓雾与非均匀雾"
+  turbo_snow:
+    task: desnow
+    backend: "docker:jarvisir-tools turbo_snow"
+    cost: 12
+    enabled: false
+    note: "img2img-turbo 去雪;一步扩散,同样有生成性风险"
+  snowmaster:
+    task: desnow
+    backend: "docker:jarvisir-tools snowmaster"
+    cost: 8
+    enabled: false
+    note: "SnowMaster 去雪;大雪与雪幕"
+  real_esrgan:
+    task: super_resolution
+    backend: "docker:jarvisir-tools real_esrgan"
+    cost: 10
+    enabled: false
+    note: "Real-ESRGAN 超分/复原;会补细节,也会补出不存在的细节"
+
+  # 不在此列:`restormer`。它出现在 JarvisIR 的 ALL_TOOLS 里,但那个仓
+  # 既没有它的执行分支也没有它的权重路径 —— 声明了却不能跑的工具不进注册表,
+  # 这正是 `enabled` 和 `restore doctor` 要防的那件事。要用它得先真的接上。

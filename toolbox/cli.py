@@ -1,6 +1,7 @@
 """`restore` —— agent 在 episode 里唯一能碰的复原接口。四个子命令:
 
-  restore catalog                       列出工具(来自 registry.yaml)
+  restore catalog                       列出**可用**工具(registry.yaml 里 enabled 的)
+  restore doctor                        逐个验证声明的工具是否真能跑(声明 != 可用)
   restore diagnose IN                   退化诊断 JSON(现在是启发式;以后换 VLM/IQA,接口不变)
   restore run TOOL IN OUT               跑一个工具;按 (tool, 输入内容哈希) 缓存,同序列不重跑
   restore score IN OUT [--ref REF]      打分并写 verifier 记录;stdout 最后一行 `REEF_SCORE=<float>`
@@ -17,7 +18,9 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import subprocess
 import sys
+import tempfile
 import time
 from pathlib import Path
 
@@ -33,7 +36,19 @@ EPISODE_ID = os.environ.get("RESTORE_EPISODE_ID", "adhoc")
 
 
 def _registry() -> dict:
+    """全部工具,含未启用的。只有 `doctor` 和错误信息该用这个。"""
     return yaml.safe_load((HERE / "registry.yaml").read_text())["tools"]
+
+
+def _enabled_registry() -> dict:
+    """agent 真正能用的工具。`enabled: false` 的声明在案但不可执行。
+
+    分开这两个,是因为"这个工具没用"和"这个工具没接上"必须可区分 ——
+    JarvisIR 把 restormer 放进 ALL_TOOLS 却没有它的执行分支,选中它只会
+    `print` 一句然后 `continue`,链照常走完、reward 照常算,两种情况在
+    训练信号里长得一模一样。
+    """
+    return {name: spec for name, spec in _registry().items() if spec.get("enabled", True)}
 
 
 def _sha(path: Path) -> str:
@@ -54,7 +69,7 @@ def _load(path: Path) -> np.ndarray:
 # ---------------- catalog ----------------
 
 def cmd_catalog() -> int:
-    reg = _registry()
+    reg = _enabled_registry()
     by_task: dict[str, list] = {}
     for name, spec in reg.items():
         by_task.setdefault(spec["task"], []).append({"tool": name, "cost": spec.get("cost", 1), "note": spec.get("note", "")})
@@ -156,12 +171,101 @@ def cmd_diagnose(inp: Path) -> int:
     return 0
 
 
+# ---------------- docker backend ----------------
+
+#: 容器内的固定路径。宿主机的文件名**不进容器** —— 这是有意的,不是洁癖。
+#: JarvisIR 的 `restoration_toolkit.process_image` 在输入路径字符串里 grep
+#: "fog" / "night" / "snow" 来决定哪些工具可用(`tool_dict` 那段);数据集按
+#: 场景命名目录是常规做法,于是"该用哪个工具"有一部分是路径给的,不是模型学的。
+#: 这个仓自己踩过同一个坑的另一半(任务 id 泄漏退化组合,已改成不可读哈希),
+#: 所以工具层这里不留第二条泄漏通道:容器只看得到 input.png 和 output.png。
+DOCKER_IN = "/work/in/input.png"
+DOCKER_OUT = "/work/out/output.png"
+
+#: 单个工具的墙钟上限。真专家模型在 CPU 上会很慢,给足;但不能没有 ——
+#: 一个挂住的容器会让整个 evolve step 无限期停在那里,而 reef 那侧看起来只是"还在跑"。
+DOCKER_TIMEOUT_S = int(os.environ.get("RESTORE_DOCKER_TIMEOUT", "900"))
+
+#: 有卡时置 1。默认关,因为"悄悄跑在 CPU 上"比"报错说没有卡"更难发现。
+DOCKER_GPUS = os.environ.get("RESTORE_DOCKER_GPUS", "")
+
+
+def docker_argv(backend: str, in_dir: Path, out_dir: Path) -> list[str]:
+    """`docker:<image> [cmd...]` -> 完整 argv。纯函数,不跑 docker,便于测试。
+
+    镜像的契约只有一条:读 DOCKER_IN,把结果写到 DOCKER_OUT。接口与 builtin
+    后端一致(一进一出),所以换后端不动循环、不动缓存、不动 trace。
+    """
+    spec = backend.split(":", 1)[1].strip()
+    if not spec:
+        raise ValueError(f"bad docker backend spec: {backend!r} (want 'docker:<image> [cmd...]')")
+    image, *cmd = spec.split()
+    argv = ["docker", "run", "--rm"]
+    if DOCKER_GPUS:
+        argv += ["--gpus", DOCKER_GPUS]
+    argv += [
+        "-v", f"{in_dir.resolve()}:{Path(DOCKER_IN).parent}:ro",
+        "-v", f"{out_dir.resolve()}:{Path(DOCKER_OUT).parent}",
+        image, *cmd, DOCKER_IN, DOCKER_OUT,
+    ]
+    return argv
+
+
+def run_docker_tool(backend: str, inp: Path, out: Path) -> None:
+    """在容器里跑一个工具。失败一律抛异常 —— 绝不把输入当输出传下去。
+
+    JarvisIR 那边模型不存在时是 `print(...)` 加 `continue`:链继续往下走,最后
+    返回一个"处理过"的路径,而 reward 照常计算。于是训练信号里"这个工具没用"
+    和"这个工具没实现"完全不可区分 —— `restormer` 就在 ALL_TOOLS 里,却既没有
+    执行分支也不在 all_model_paths 里。这里不留这条路。
+    """
+    import shutil
+    import subprocess
+
+    if shutil.which("docker") is None:
+        raise RuntimeError(
+            f"docker backend {backend!r} 需要 docker,但 PATH 上没有。"
+            f"没有 docker 就该说没有,而不是让这一步看起来跑过了。"
+        )
+    with tempfile.TemporaryDirectory(prefix="restore-docker-") as scratch:
+        in_dir, out_dir = Path(scratch) / "in", Path(scratch) / "out"
+        in_dir.mkdir(), out_dir.mkdir()
+        (in_dir / Path(DOCKER_IN).name).write_bytes(inp.read_bytes())
+        argv = docker_argv(backend, in_dir, out_dir)
+        try:
+            proc = subprocess.run(argv, capture_output=True, text=True, timeout=DOCKER_TIMEOUT_S)
+        except subprocess.TimeoutExpired as exc:
+            raise RuntimeError(f"docker tool timed out after {DOCKER_TIMEOUT_S}s: {' '.join(argv)}") from exc
+        if proc.returncode != 0:
+            raise RuntimeError(
+                f"docker tool exited {proc.returncode}: {' '.join(argv)}\n"
+                f"stderr: {(proc.stderr or proc.stdout)[:500]}"
+            )
+        produced = out_dir / Path(DOCKER_OUT).name
+        if not produced.exists():
+            raise RuntimeError(
+                f"docker tool exited 0 but wrote no {DOCKER_OUT}: {' '.join(argv)}\n"
+                f"stdout: {proc.stdout[:300]}"
+            )
+        out.parent.mkdir(parents=True, exist_ok=True)
+        out.write_bytes(produced.read_bytes())
+
+
 # ---------------- run ----------------
 
 def cmd_run(tool: str, inp: Path, out: Path) -> int:
-    reg = _registry()
+    reg = _enabled_registry()
     if tool not in reg:
-        print(json.dumps({"status": "unknown_tool", "tool": tool, "known": sorted(reg)}), file=sys.stderr)
+        known_but_off = tool in _registry()
+        print(json.dumps({
+            # 两种拒绝分开报,因为它们要人做的事不同:一个是打错名字,
+            # 一个是这个工具还没接上(去 registry 里把 enabled 打开并跑 doctor)。
+            "status": "disabled_tool" if known_but_off else "unknown_tool",
+            "tool": tool,
+            "known": sorted(reg),
+            **({"hint": "declared in registry.yaml but enabled: false - it is not runnable, "
+                        "so this step did not happen"} if known_but_off else {}),
+        }), file=sys.stderr)
         return 2
     in_sha = _sha(inp)
     cache_key = f"{tool}-{in_sha}"
@@ -181,12 +285,14 @@ def cmd_run(tool: str, inp: Path, out: Path) -> int:
 
             fn = getattr(builtin, backend.split(":", 1)[1])
             result = fn(_load(inp))
+            out.parent.mkdir(parents=True, exist_ok=True)
+            Image.fromarray(result).save(out)
         elif backend.startswith("docker:"):
-            raise NotImplementedError("docker backend: 接真 JarvisIR 工具时实现,接口 in.png out.png 不变")
+            run_docker_tool(backend, inp, out)
         else:
             raise ValueError(f"bad backend spec: {backend}")
-        out.parent.mkdir(parents=True, exist_ok=True)
-        Image.fromarray(result).save(out)
+        if not out.exists():
+            raise RuntimeError(f"{tool}: backend returned without writing {out}")
         cached.write_bytes(out.read_bytes())
     except Exception as e:
         _trace({"kind": "run", "tool": tool, "input_sha": in_sha, "status": "failed", "error": repr(e), "ms": int((time.time() - t0) * 1000)})
@@ -195,6 +301,58 @@ def cmd_run(tool: str, inp: Path, out: Path) -> int:
     ms = int((time.time() - t0) * 1000)
     _trace({"kind": "run", "tool": tool, "input_sha": in_sha, "output_sha": _sha(out), "status": "ok", "ms": ms})
     print(json.dumps({"status": "ok", "tool": tool, "output": str(out), "ms": ms}))
+    return 0
+
+
+# ---------------- doctor ----------------
+
+def check_tool(name: str, spec: dict) -> tuple[bool, str]:
+    """这个工具此刻真的能跑吗?(不跑它,只验可执行性)"""
+    backend = spec.get("backend", "")
+    if backend.startswith("builtin:"):
+        from . import builtin
+
+        fn = backend.split(":", 1)[1]
+        return (True, "builtin ok") if hasattr(builtin, fn) else (False, f"builtin.{fn} 不存在")
+    if backend.startswith("docker:"):
+        import shutil
+
+        if shutil.which("docker") is None:
+            return False, "PATH 上没有 docker"
+        image = backend.split(":", 1)[1].strip().split()[0]
+        proc = subprocess.run(["docker", "image", "inspect", image], capture_output=True, text=True)
+        return (True, f"镜像 {image} 在本地") if proc.returncode == 0 else (False, f"镜像 {image} 不在本地")
+    return False, f"无法识别的 backend: {backend!r}"
+
+
+def cmd_doctor() -> int:
+    """逐个验证注册表里声明的工具是否真的可执行。
+
+    这条命令存在的理由是一个具体的 bug:JarvisIR 的 ALL_TOOLS 里有 13 个工具,
+    其中 `restormer` 既没有执行分支也没有权重路径,选中它就是静默跳过。没有
+    任何东西会说出这件事,而模型会把它学成"restormer 没用"。
+
+    退出码:0 = 所有**已启用**的工具都能跑;1 = 有启用的工具跑不了。
+    未启用的工具单独列出,不影响退出码 —— 它们本来就说了自己不可用。
+    """
+    reg = _registry()
+    broken, ok, disabled = [], [], []
+    for name, spec in sorted(reg.items()):
+        is_on = spec.get("enabled", True)
+        good, why = check_tool(name, spec)
+        (ok if good else broken).append((name, why)) if is_on else disabled.append((name, why, good))
+
+    for name, why in ok:
+        print(f"  ok       {name:22s} {why}")
+    for name, why in broken:
+        print(f"  BROKEN   {name:22s} {why}", file=sys.stderr)
+    for name, why, good in disabled:
+        print(f"  disabled {name:22s} {why}{'  (可用,打开 enabled 即可)' if good else ''}")
+
+    print(f"\n启用 {len(ok) + len(broken)} 个:可跑 {len(ok)},跑不了 {len(broken)};未启用 {len(disabled)} 个")
+    if broken:
+        print("有工具声明为启用却跑不了 —— 这正是 agent 会当成「这个工具没用」的那种失败。", file=sys.stderr)
+        return 1
     return 0
 
 
@@ -273,6 +431,8 @@ def main(argv: list[str]) -> int:
     cmd, args = argv[0], argv[1:]
     if cmd == "catalog":
         return cmd_catalog()
+    if cmd == "doctor":
+        return cmd_doctor()
     if cmd == "diagnose" and len(args) == 1:
         return cmd_diagnose(Path(args[0]))
     if cmd == "run" and len(args) == 3:

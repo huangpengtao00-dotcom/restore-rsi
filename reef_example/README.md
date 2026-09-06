@@ -5,8 +5,13 @@ harness-evolution loop, mirroring `reef/tutorials/harness_evolve/`: the agent
 harness is a composition tree (here: one `restore-strategy` skill), the served
 model proposes one skill mutation over its own failing tasks, real headless pi
 episodes score current vs candidate, a win publishes a versioned tree that
-`GET /reef/harness` returns. Zero GPU: the tools are classical (DCP dehaze,
-gamma/CLAHE, bilateral/median, unsharp) and the model is a remote text LLM.
+`GET /reef/harness` returns. Zero GPU by default: the six enabled tools are classical
+(DCP dehaze, gamma/CLAHE, bilateral/median, unsharp) and the model is a remote
+text LLM. JarvisIR's twelve expert models sit in the same registry behind
+`enabled: false`; turning them on needs a container image and a card, and
+changes nothing on the loop side - the docker backend has the same one-in
+one-out contract as builtin. `restore doctor` says which of the two a tool is
+in right now.
 
 ## Layout
 
