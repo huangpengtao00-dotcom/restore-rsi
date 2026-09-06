@@ -95,28 +95,14 @@ def test_batch_threshold_is_read_from_the_recipe_not_hardcoded():
     assert "max_score" in src
 
 
-def test_missing_recipe_raises_rather_than_guessing_a_default():
-    """读不到就抛。猜一个默认值,会让整轮的「有没有失败」都是错的而日志正常。"""
-    import importlib.util
-    import sys
+def test_missing_recipe_raises_rather_than_guessing_a_default(monkeypatch):
+    """读不到就抛。猜一个默认值,会让整轮的「有没有失败」都是错的而日志正常。
 
-    spec = importlib.util.spec_from_file_location("_runpy_probe", ROOT / "reef_example" / "run.py")
-    assert spec and spec.loader
-    sys.path.insert(0, str(ROOT / "reef_example"))
-    try:
-        import reef_client  # noqa: F401
-    except ImportError:
-        pytest.skip("reef_example deps unavailable: No module named 'reef_client'")
-    module = importlib.util.module_from_spec(spec)
-    import os
-    old = os.environ.get("RESTORE_WORK")
-    os.environ["RESTORE_WORK"] = "work/definitely-not-materialized"
-    try:
-        spec.loader.exec_module(module)
-        with pytest.raises(RuntimeError, match="max_score"):
-            module.batch_threshold()
-    finally:
-        if old is None:
-            os.environ.pop("RESTORE_WORK", None)
-        else:
-            os.environ["RESTORE_WORK"] = old
+    判据放在 harness 里(不是 run.py),所以这条不需要 reef —— 一个只在装了 reef
+    的环境里才跑的判据,在 CI 的核心作业里等于不存在。
+    """
+    from harness.scoring import batch_threshold
+
+    monkeypatch.setenv("RESTORE_WORK", "work/definitely-not-materialized")
+    with pytest.raises(RuntimeError, match="max_score"):
+        batch_threshold()

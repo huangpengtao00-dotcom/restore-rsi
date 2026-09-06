@@ -6,6 +6,44 @@
 
 from __future__ import annotations
 
+import os
+from pathlib import Path
+
+
+def work_dir() -> Path:
+    """本次配置的状态目录。并行跑多个消融臂时每个臂一份,`RESTORE_WORK` 指定。"""
+    return Path(__file__).resolve().parent.parent / os.environ.get("RESTORE_WORK", "work")
+
+
+def batch_threshold() -> float:
+    """报到多少分才算「失败」、于是进 batch。**从 materialize 生成的 recipe 读。**
+
+    run.py 原来硬编码 `score <= 0.5`,而真正决定 reef 是否 batch 的是
+    `data.max_score`(serve.yaml,可被 RESTORE_MAX_SCORE 覆盖)。两处各自写一份
+    判据的后果,2026-09-06 实测到了:阈值调到 0.9 之后三道题报 0.727/0.783/0.741,
+    reef 那侧全部会 batch,而 run.py 按自己的 0.5 认为「every task passed」,打印
+    一句就退出,根本不去等 evolve。整轮四十分钟白跑,日志看起来一切正常。
+
+    和同一天的 `tool_catalog` 是同一个坑:判据在两处各自实现,迟早分叉。
+
+    放在 harness 而不是 run.py,理由和 `attained` 一样:判据要能被单独测试,
+    而 run.py 顶层要 import reef_client。
+    """
+    import yaml
+
+    recipe = work_dir() / "recipes" / "harness_evolve.yaml"
+    try:
+        data = yaml.safe_load(recipe.read_text(encoding="utf-8")).get("data") or {}
+    except (OSError, AttributeError, yaml.YAMLError) as exc:
+        raise RuntimeError(
+            f"读不到 {recipe} 里的 data.max_score({exc!r})。run.sh 会先跑 materialize.py "
+            f"生成它;直接跑 run.py 时请先 materialize。不猜一个默认值 —— 猜错了整轮的"
+            f"「有没有失败」都是错的,而日志看起来完全正常。"
+        ) from exc
+    if "max_score" not in data:
+        raise RuntimeError(f"{recipe} 的 data 段没有 max_score:{sorted(data)}")
+    return float(data["max_score"])
+
 
 def attained(score: float, frame: dict) -> tuple[float, str]:
     """(报给 reef 的分, 写进 feedback 的口径说明)。

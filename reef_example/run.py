@@ -36,7 +36,7 @@ from pathlib import Path
 from reef_client import ReefClient, ReefClientError
 
 from harness.evolution import parse_score, task_id
-from harness.scoring import attained
+from harness.scoring import attained, batch_threshold
 
 HERE = Path(__file__).resolve().parent
 #: 本次配置的状态目录与端口。同一台机器上并行跑多个消融臂时,每个臂必须有自己的一份 ——
@@ -127,34 +127,6 @@ def _infer(client: ReefClient, messages: list[dict], log, attempts: int = 4) -> 
             log(f"  inference attempt {attempt}/{attempts} failed ({type(exc).__name__} {status}); retrying in {backoff:.0f}s")
             time.sleep(backoff)
     return None
-
-
-def batch_threshold() -> float:
-    """报到多少分才算「失败」、于是进 batch。**从 materialize 生成的 recipe 读。**
-
-    这里原来硬编码 0.5,而真正决定 reef 是否 batch 的是 `data.max_score`(serve.yaml,
-    可被 RESTORE_MAX_SCORE 覆盖)。两处各自写一份判据的后果,2026-09-06 实测到了:
-    把阈值调到 0.9 之后三道题报 0.727/0.783/0.741 —— reef 那侧全部会 batch,而
-    run.py 按自己的 0.5 认为「every task passed」,打印一句就退出,根本不去等 evolve。
-    整轮四十分钟白跑,而且日志看起来一切正常。
-
-    和同一天上午 `tool_catalog` 那个坑是同一个:判据在两处各自实现,迟早分叉。
-    判据从唯一真相源读,不自己重推。
-    """
-    import yaml
-
-    recipe = WORK / "recipes" / "harness_evolve.yaml"
-    try:
-        data = yaml.safe_load(recipe.read_text(encoding="utf-8")).get("data") or {}
-    except (OSError, AttributeError, yaml.YAMLError) as exc:
-        raise RuntimeError(
-            f"读不到 {recipe} 里的 data.max_score({exc!r})。run.sh 会先跑 materialize.py "
-            f"生成它;直接跑 run.py 时请先 materialize。不猜一个默认值 —— 猜错了整轮的"
-            f"「有没有失败」都是错的,而日志看起来完全正常。"
-        ) from exc
-    if "max_score" not in data:
-        raise RuntimeError(f"{recipe} 的 data 段没有 max_score:{sorted(data)}")
-    return float(data["max_score"])
 
 
 def record_episode(tid: str, prompt: str, frame: dict, client: ReefClient, log) -> tuple[float, str, list[str]]:

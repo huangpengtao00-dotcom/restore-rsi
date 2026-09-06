@@ -320,11 +320,10 @@ def _final_output_sha(episode_id: str) -> str | None:
 
 
 def _work_dir():
-    """本次配置的状态目录。并行跑多个消融臂时每个臂一份,`RESTORE_WORK` 指定。"""
-    import os
-    from pathlib import Path
+    """本次配置的状态目录。实现在 scoring —— 全仓一份,不各自算路径。"""
+    from .scoring import work_dir
 
-    return Path(__file__).resolve().parent.parent / os.environ.get("RESTORE_WORK", "work")
+    return work_dir()
 
 
 def _results_dir():
