@@ -32,7 +32,10 @@ echo "== work=$WORK port=$PORT ablation=${RESTORE_ABLATION:-baseline}"
 #    - a local proxy will hijack the upstream host (known trap: every call
 #      4xx/5xx or hangs); reef (urllib/aiohttp honour *_proxy) and pi both run
 #      from this shell, so unset all of it here and pin NO_PROXY to the host
-export PATH="$PWD/bin:$ROOT/.venv/bin:$PATH"
+# 每个臂一份自己的 wrapper,把路径烧进去 —— reef 会剥光 episode 的环境变量,
+# 传不进去的东西就别指望环境变量。理由和实测代价写在 bin/make-arm-wrapper.sh 里。
+bin/make-arm-wrapper.sh "$PWD" "$WORK" > /dev/null
+export PATH="$PWD/$WORK/bin:$PWD/bin:$ROOT/.venv/bin:$PATH"
 _from_env_file() {  # $1=key in ~/.dsh/.env
     [ -f "$HOME/.dsh/.env" ] && grep -E "^$1=" "$HOME/.dsh/.env" | head -1 | cut -d= -f2- | tr -d '"'"'"
 }

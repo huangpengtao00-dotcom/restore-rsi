@@ -101,3 +101,76 @@ def test_materialize_writes_into_its_own_arm(scratch_arm):
     produced = ROOT / "reef_example" / arm
     for name in ("tasks.json", "task_refs.json", "recipes/harness_evolve.yaml"):
         assert (produced / name).exists(), f"{arm} 缺 {name};stdout={proc.stdout[-300:]}"
+
+
+# ------------------------------------------------- episode 侧的路径隔离
+
+@pytest.fixture
+def arm_wrapper(request, tmp_path):
+    """用**生产脚本**给一个臂生成 wrapper —— 判据从被测代码取,不在测试里重写一份。"""
+    import shutil
+    import subprocess
+
+    arm = request.param
+    here = ROOT / "reef_example"
+    target = here / arm
+    shutil.rmtree(target, ignore_errors=True)
+    proc = subprocess.run(
+        [str(here / "bin" / "make-arm-wrapper.sh"), str(here), arm],
+        capture_output=True, text=True, timeout=30,
+    )
+    assert proc.returncode == 0, proc.stderr
+    try:
+        yield Path(proc.stdout.strip())
+    finally:
+        shutil.rmtree(target, ignore_errors=True)
+
+
+@pytest.mark.parametrize("arm_wrapper", ["work/t-wrap-a", "work/t-wrap-b"], indirect=True)
+def test_the_arm_wrapper_pins_paths_into_its_own_arm(arm_wrapper):
+    """episode 侧的路径必须烧进 wrapper,不能靠环境变量传。
+
+    reef 把 episode 的环境剥到只剩 PATH/TMPDIR,所以 RESTORE_RESULTS_DIR 传不进
+    pi。bin/restore 的 `${VAR:-default}` 于是总取默认的 `work/` —— 并行跑臂时那是
+    错的。实测代价:baseline 跑在 work/baseline,pi 的 376 条 trace 全写进共用的
+    work/,judge 在本臂找不到成功的 run,把每个 episode 判 0 分,48 分钟跑完两边
+    都是 0.0,日志一切正常。
+    """
+    arm = arm_wrapper.parent.parent.name  # .../work/t-wrap-a/bin/restore -> t-wrap-a
+    assert arm_wrapper.exists() and arm_wrapper.stat().st_mode & 0o111, "wrapper 要可执行"
+    body = arm_wrapper.read_text(encoding="utf-8")
+    for var in ("RESTORE_RESULTS_DIR", "RESTORE_CACHE_DIR", "RESTORE_TRACE"):
+        assert var in body, f"{var} 必须被烧进 wrapper"
+        line = next(l for l in body.splitlines() if l.startswith(f"export {var}="))
+        assert f"/{arm}/" in line, f"{var} 指向的不是本臂:{line}"
+    assert body.rstrip().endswith('"$@"'), "应当把参数透传给原 wrapper"
+
+
+@pytest.mark.parametrize("arm_wrapper", ["work/t-wrap-c"], indirect=True)
+def test_the_wrapper_actually_exports_those_paths(arm_wrapper):
+    """真跑一次,看它导出的值。只读文本会漏掉引号/展开出错的情形。"""
+    import subprocess
+
+    proc = subprocess.run(
+        ["bash", "-c", f'source "{arm_wrapper}" 2>/dev/null; echo "$RESTORE_TRACE"'],
+        capture_output=True, text=True, timeout=30,
+    )
+    # source 会执行到 exec 那行,所以用一个只取变量的方式:直接解析并 eval 前几行
+    body = "\n".join(l for l in arm_wrapper.read_text(encoding="utf-8").splitlines() if l.startswith("export "))
+    proc = subprocess.run(
+        ["bash", "-c", f'{body}\necho "$RESTORE_TRACE|$RESTORE_CACHE_DIR"'],
+        capture_output=True, text=True, timeout=30,
+    )
+    assert proc.returncode == 0, proc.stderr
+    trace, cache = proc.stdout.strip().split("|")
+    assert trace.endswith("/work/t-wrap-c/results/trace.jsonl"), trace
+    assert cache.endswith("/work/t-wrap-c/cache"), cache
+
+
+def test_run_sh_puts_the_arm_wrapper_first_on_path():
+    """臂 wrapper 必须排在共用的 bin/ 前面,否则烧进去的路径根本不生效。"""
+    src = (ROOT / "reef_example" / "run.sh").read_text(encoding="utf-8")
+    line = next(l for l in src.splitlines() if l.startswith("export PATH="))
+    arm_pos, shared_pos = line.index('$WORK/bin'), line.index('$PWD/bin')
+    assert arm_pos < shared_pos, f"臂 wrapper 应当在共用 bin 之前:{line}"
+    assert "make-arm-wrapper.sh" in src, "run.sh 必须调用生成脚本"
