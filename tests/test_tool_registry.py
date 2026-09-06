@@ -124,3 +124,61 @@ def test_doctor_exits_zero_while_every_enabled_tool_works():
     proc = subprocess.run([*RESTORE, "doctor"], capture_output=True, text=True, cwd=ROOT)
     assert proc.returncode == 0, proc.stderr
     assert "跑不了 0" in proc.stdout
+
+
+# ------------------------------------------------- prompt 与 CLI 必须说同一套
+
+def test_prompt_catalog_matches_what_the_cli_lists():
+    """写进 episode prompt 的工具目录,必须和 `restore catalog` 列的完全一致。
+
+    这两处曾经不一致:`materialize.tool_catalog()` 读整张 registry,而
+    `restore catalog` 加了 `enabled` 过滤之后只列可用的。于是 prompt 告诉 agent
+    有 18 个工具,其中 12 个一调就被拒。2026-09-06 跑 baseline 的第一轮就撞上 ——
+    agent 连着两轮去调 ridcp,6 轮预算白扔三分之一。
+
+    危害不在浪费,在**不可比**:agent 面对的工具集和它实际能用的不是一回事,
+    这样跑出来的行为数据和之前的对不上,而症状只是"这一轮它好像有点笨"。
+
+    判据不写死工具数量 —— 那样每加一个工具都要改测试,而且抓不到"两处各自都改了
+    但改得不一样"。直接比两个集合。
+    """
+    import sys
+
+    sys.path.insert(0, str(ROOT / "reef_example"))
+    import materialize
+
+    listed_in_prompt = {
+        line.split("- ", 1)[1].split(" ", 1)[0]
+        for line in materialize.tool_catalog().splitlines()
+        if "- " in line
+    }
+    proc = subprocess.run([*RESTORE, "catalog"], capture_output=True, text=True, cwd=ROOT)
+    assert proc.returncode == 0, proc.stderr
+    listed_by_cli = {t["tool"] for group in json.loads(proc.stdout).values() for t in group}
+    assert listed_in_prompt == listed_by_cli, (
+        f"prompt 与 CLI 的工具目录不一致:\n"
+        f"  只在 prompt 里:{sorted(listed_in_prompt - listed_by_cli)}\n"
+        f"  只在 CLI 里:{sorted(listed_by_cli - listed_in_prompt)}"
+    )
+
+
+def test_every_tool_in_the_prompt_can_actually_run():
+    """更硬的一条:prompt 里出现的每个工具都必须此刻真能跑。
+
+    上一条只保证两处一致 —— 两处一起错也能通过。这条直接对着可执行性验。
+    """
+    import sys
+
+    sys.path.insert(0, str(ROOT / "reef_example"))
+    import materialize
+
+    registry = cli._registry()
+    broken = []
+    for line in materialize.tool_catalog().splitlines():
+        if "- " not in line:
+            continue
+        name = line.split("- ", 1)[1].split(" ", 1)[0]
+        ok, why = cli.check_tool(name, registry[name])
+        if not ok:
+            broken.append((name, why))
+    assert not broken, f"prompt 里列了跑不了的工具:{broken}"

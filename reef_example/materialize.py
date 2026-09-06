@@ -24,9 +24,28 @@ RECIPE_SECTIONS = ("implementation", "model", "evolution", "data")
 
 
 def tool_catalog() -> str:
-    """One line per tool from toolbox/registry.yaml (what `restore catalog` shows)."""
-    registry = yaml.safe_load((HERE.parent / "toolbox" / "registry.yaml").read_text())["tools"]
-    return "\n".join(f"  - {name} ({spec['task']}): {spec.get('note', '')}" for name, spec in registry.items())
+    """写进 prompt 的工具目录。**只列 agent 真能调用的**,和 `restore catalog` 一致。
+
+    这里曾经读整张 registry。加了 `enabled` 之后就错了:prompt 列出 18 个工具,而
+    其中 12 个专家模型没接上,`restore run` 会拒绝它们。实测后果(2026-09-06 跑
+    baseline 时第一轮就撞上)——agent 连续两轮去调 `ridcp`,两轮全废,6 轮的预算
+    白扔三分之一。
+
+    更要命的是它对实验的影响:agent 面对的工具集和它实际能用的不是一回事,那样跑
+    出来的行为数据和之前的完全不可比,而症状只是"这一轮它好像有点笨"。
+
+    所以目录必须从 toolbox 那一份取,不能在这里另抄一份 —— 判据从被测代码原样抄,
+    不自己重推。
+    """
+    import sys
+
+    sys.path.insert(0, str(HERE.parent))
+    from toolbox.cli import _enabled_registry
+
+    return "\n".join(
+        f"  - {name} ({spec['task']}): {spec.get('note', '')}"
+        for name, spec in _enabled_registry().items()
+    )
 
 
 def opaque_id(task_id: str) -> str:
