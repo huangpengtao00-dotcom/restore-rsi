@@ -35,6 +35,7 @@ from pathlib import Path
 
 from reef_client import ReefClient, ReefClientError
 
+from harness.ablation import current as current_ablation
 from harness.evolution import parse_score, task_id
 from harness.scoring import attained, batch_threshold
 
@@ -237,6 +238,13 @@ def main() -> None:
             handle.write(f"{time.strftime('%H:%M:%S')} {line}\n")
 
     log(f"== record+report: {len(tasks)} task(s), scenario {SCENARIO}")
+    # 这一臂到底在跑什么配置,必须写进它自己的日志。六次白跑全是"跑完了、日志正常、
+    # 数据是错的";事后靠决策记录的字段形状反推能核出来,但那要人想到去核。
+    # 打印的是 **解析后的** 四个字段(不是环境变量原文),所以拼错的开关会在这里
+    # 报错、而不是静默退回默认值。
+    ablation = current_ablation()
+    log(f"== 消融配置:{ablation.label()} | 全字段 {ablation.as_dict()}")
+    log(f"== 隔离:work={WORK} service={SERVICE_URL}")
     threshold = batch_threshold()
     log(f"== 失败判据:reported <= {threshold} 进 batch(读自 recipe 的 data.max_score)")
     failures = 0

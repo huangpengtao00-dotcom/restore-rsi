@@ -180,3 +180,42 @@ def test_the_two_gates_disagree_on_the_measured_step():
     assert wins > losses, "旧规则会发布"
     assert wins < sign_test_threshold(wins + losses, 0.10), "符号检验应当拒绝"
     assert p_value(3, 3) == pytest.approx(0.125)
+
+
+def test_run_py_logs_its_own_ablation_config():
+    """每臂的日志必须自报配置 —— 六次白跑全是"跑完了、日志正常、数据是错的"。
+
+    这里不 grep 源码找 `current_ablation()` 那串字符 —— 2026-09-07 刚栽过一次:
+    launch_arm.py 的测试只 grep 了 `start_new_session=True`,静态过了、四次发车
+    全 FileNotFoundError。所以这条测试**真去执行 run.py 的启动路径**,用一个拼错
+    的开关:如果解析没落在启动路径上,run.py 会带着错标签正常跑起来。
+    """
+    import subprocess
+    import sys
+    from pathlib import Path
+
+    reef_example = Path(__file__).resolve().parent.parent / "reef_example"
+    venv_python = reef_example.parent / ".venv" / "bin" / "python3"
+    python = str(venv_python) if venv_python.is_file() else sys.executable
+
+    proc = subprocess.run(
+        [python, "run.py", "--limit", "1"],
+        cwd=reef_example,
+        env={
+            "PATH": "/usr/bin:/bin",
+            "HOME": str(Path.home()),
+            "RESTORE_ABLATION": "gate=typo_that_does_not_exist",
+            "RESTORE_WORK": "work",
+            # 连不上的端口:即使解析通过也不会真去跑任务、更不会碰在跑的臂
+            "REEF_PORT": "8977",
+        },
+        capture_output=True,
+        text=True,
+        timeout=120,
+    )
+    if "No module named" in proc.stderr:
+        import pytest as _pytest
+
+        _pytest.skip(f"run.py 的依赖不在这个解释器里:{proc.stderr.strip().splitlines()[-1]}")
+    assert proc.returncode != 0, f"拼错的开关没能让 run.py 退出:\n{proc.stdout}\n{proc.stderr}"
+    assert "typo_that_does_not_exist" in proc.stderr, proc.stderr

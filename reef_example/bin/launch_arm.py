@@ -16,7 +16,10 @@ import subprocess
 import sys
 from pathlib import Path
 
-HERE = Path(__file__).resolve().parent
+#: reef_example 目录 —— 这个脚本在它的 bin/ 下,所以要往上一级。
+#: (第一版写成 `.parent` 直接指到 bin/,四次发车全是 FileNotFoundError: './run.sh';
+#: 而当时的测试只检查源码里有没有 start_new_session=True,静态过了、实际起不来。)
+HERE = Path(__file__).resolve().parent.parent
 
 
 def main() -> int:
@@ -25,6 +28,12 @@ def main() -> int:
         return 2
     arm, port, ablation = sys.argv[1], sys.argv[2], sys.argv[3]
     max_score = sys.argv[4] if len(sys.argv) > 4 else "0.9"
+
+    runner = HERE / "run.sh"
+    if not runner.is_file():
+        # 说清楚是路径不对,而不是抛一个光秃秃的 FileNotFoundError 堆栈
+        print(f"找不到 {runner} —— HERE 应当指向含 run.sh 的 reef_example 目录", file=sys.stderr)
+        return 2
 
     work = f"work/{arm}"
     env = {**os.environ, "REEF_PORT": port, "RESTORE_WORK": work, "RESTORE_MAX_SCORE": max_score}

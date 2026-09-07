@@ -208,6 +208,30 @@ def test_launcher_detaches_the_session():
     assert "run.pid" in src, "pid 要落盘 —— 停车按 pid,不按 pkill -f 模式(会误杀同类)"
 
 
+def test_launcher_resolves_the_runner_it_will_exec():
+    """真的去看 run.sh 在不在那个位置 —— 光检查源码里有 start_new_session 是不够的。
+
+    第一版把 HERE 写成 `Path(__file__).parent`(即 bin/),四次发车全是
+    FileNotFoundError: './run.sh',而当时的测试只做文本检查,静态全过。
+    判据必须落在「它会去执行的那个路径」上,不是「源码里出现过的字符串」上。
+    """
+    import importlib.util
+
+    path = ROOT / "reef_example" / "bin" / "launch_arm.py"
+    spec = importlib.util.spec_from_file_location("_launch_probe", path)
+    assert spec and spec.loader
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    assert (module.HERE / "run.sh").is_file(), f"HERE={module.HERE} 下没有 run.sh"
+    assert module.HERE.name == "reef_example", f"HERE 应指向 reef_example,实为 {module.HERE}"
+
+
+def test_launcher_refuses_clearly_when_the_runner_is_missing():
+    """路径不对时要说清楚,而不是抛一个光秃秃的 FileNotFoundError。"""
+    src = (ROOT / "reef_example" / "bin" / "launch_arm.py").read_text(encoding="utf-8")
+    assert "is_file()" in src and "找不到" in src
+
+
 def test_launcher_clears_ablation_for_baseline():
     """baseline 臂必须**删掉**环境变量,而不是传一个 'baseline' 字符串进去 ——
     那会被 Ablation.parse 当成拼错的开关而报错。"""
