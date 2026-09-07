@@ -110,3 +110,67 @@ def test_both_sides_unmeasurable_yields_no_evidence():
     from harness.selection import _tally
 
     assert _tally((None, None), (None, None)) == (0, 0, 2)
+
+
+# ------------------------------------------------- PACE 的 e-process 闸门
+
+def test_e_process_matches_the_paper_formula():
+    """按 PACE(arXiv 2606.08106)式 (2) 实现:E <- E*(1+λ(2w-1)),E_0=1。
+
+    零假设与符号检验相同(配对、丢平局、H0 下不一致对各半),差别只在序贯 vs 固定 n。
+    """
+    from harness.selection import EProcessSelector
+
+    sel = EProcessSelector(alpha=0.05, bet=0.5)
+    # 三胜:1.5^3 = 3.375
+    final, path, crossed = sel.wealth_path((1, 1, 1), (0, 0, 0))
+    assert final == pytest.approx(1.5**3)
+    assert crossed == -1, "3.375 < 20,不该提交"
+    # 一胜一负回到 1.5*0.5 = 0.75
+    final, _, _ = sel.wealth_path((1, 0), (0, 1))
+    assert final == pytest.approx(0.75)
+
+
+def test_e_process_judges_on_the_running_maximum_not_the_final_wealth():
+    """anytime-valid 判的是 sup_t E_t —— 中途越过就算,哪怕后来跌回来。"""
+    from harness.selection import EProcessSelector
+
+    sel = EProcessSelector(alpha=0.05, bet=0.5)
+    # 先 8 连胜(越过 20),再连输把终值打下来
+    n = 8
+    final, path, crossed = sel.wealth_path((1,) * n + (0,) * 6, (0,) * n + (1,) * 6)
+    assert crossed == 8, "第 8 对就该越过"
+    assert max(path) >= 20.0 and final < 20.0, "终值已跌回阈值以下,但仍应算提交"
+
+
+def test_ties_and_unmeasurable_are_dropped_like_the_sign_test():
+    """平局丢弃是 McNemar 的做法;测不出来的也不参与 —— 两个闸门口径必须一致,
+    否则它们的对照结果里混着口径差。"""
+    from harness.selection import EProcessSelector
+
+    sel = EProcessSelector()
+    a, _, _ = sel.wealth_path((1, 1), (0, 0))
+    b, _, _ = sel.wealth_path((1, 0.5, 1, None), (0, 0.5, 0, 0.3))  # 一个平局 + 一个不可测
+    assert a == pytest.approx(b), "平局与不可测不该改变财富"
+
+
+def test_the_two_gates_swap_strictness_around_n_ten():
+    """两种闸门的严格程度随 n 反转,交叉点在 n≈10-12。
+
+    小循环里 e-process 几乎不可能提交(λ=0.5 要 8 连胜,而总共才 7~9 对);
+    大 dev set 上它反而更松(只要 8 连胜,不管总数)。这解释了为什么 PACE 在
+    GSM8K 那种设置上有效,而在这个仓的规模上会卡住 —— **保证成立不等于能用**。
+
+    这个反转本身是要写进论文的观察,所以钉在这里。
+    """
+    import sys as _sys
+    from pathlib import Path as _Path
+
+    _sys.path.insert(0, str(_Path(__file__).resolve().parent.parent / "tasks"))
+    from gate_feasibility import min_wins_at
+
+    from harness.selection import sign_test_threshold
+
+    assert min_wins_at(7, 0.05, 0.5) is None, "n=7 时 e-process 应当不可能提交"
+    assert min_wins_at(9, 0.05, 0.5) == 8 > sign_test_threshold(9, 0.10) == 7, "n=9 时 e-process 更严"
+    assert min_wins_at(18, 0.05, 0.5) == 8 < sign_test_threshold(18, 0.10) == 13, "n=18 时反过来"

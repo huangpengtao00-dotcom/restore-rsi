@@ -131,6 +131,93 @@ class SignTestSelector:
         )
 
 
+class EProcessSelector:
+    """PACE 的 testing-by-betting 闸门(arXiv 2606.08106),按原文实现。
+
+    **零假设与符号检验完全相同**:配对比较,平局丢弃,不一致对在 H0 下各占一半
+    (McNemar 式)。差别在判定方式 —— 符号检验是固定 n 的批量判定,e-process 是
+    序贯的:每来一个不一致对就下一次注,财富越过 1/alpha 就提交。
+
+        E_0 = 1
+        E  <- E * (1 + lambda * (2*w_i - 1))          原文式 (2),lambda in [0,1)
+        commit  当  E >= 1/alpha
+
+    H0 下 E[2w-1] = 0,E 是非负上鞅且 E[E_i] <= 1,由 Ville 不等式
+    Pr[sup_t E_t >= 1/alpha] <= alpha —— **在任意停时都成立**,这正是"anytime-valid"
+    的含义:可以边评边看,证据够了立刻停,而不必预先定 n。原文默认 alpha=0.05、
+    lambda=0.5。
+
+    **一个诚实的范围限制**(原文自己写明):保证是 per-candidate 的,不是 run 级的
+    familywise —— 跑很多个不改进的候选,期望假提交数按每候选 alpha 累加。
+
+    **在这个仓里的实现差异,必须说清楚**:reef 是批量跑完所有 episode 再判,所以
+    这里只能**按评估顺序事后重放**那个序贯过程。错误率保证照样成立(Ville 不等式
+    对任何停时都成立),但 anytime-valid 最大的实际好处 —— 提前停下来省评估 ——
+    在这个架构里拿不到。要拿到得让 evaluate 能增量返回,那是 reef 侧的改动。
+    """
+
+    def __init__(self, alpha: float = 0.05, bet: float = 0.5) -> None:
+        if not 0.0 < alpha < 1.0:
+            raise ValueError(f"alpha must be in (0, 1), got {alpha!r}")
+        if not 0.0 <= bet < 1.0:
+            raise ValueError(f"lambda must be in [0, 1), got {bet!r}")
+        self.alpha = alpha
+        self.bet = bet
+
+    def wealth_path(self, candidate, current) -> tuple[float, list[float], int]:
+        """(最终财富, 每步财富, 首次越过阈值的位置或 -1)。
+
+        返回整条路径而不只是终值:anytime-valid 的判定是 `sup_t E_t >= 1/alpha`,
+        也就是**只要中途越过就算**,不是看最后停在哪 —— 财富可以先冲高再跌回来。
+        """
+        threshold = 1.0 / self.alpha
+        wealth, path, crossed = 1.0, [], -1
+        index = 0
+        for cand, cur in zip(candidate, current, strict=True):
+            if not (_measurable(cand) and _measurable(cur)):
+                continue          # 测不出来的不参与,同 _tally
+            if cand == cur:
+                continue          # 平局丢弃(McNemar)
+            w = 1 if cand > cur else 0
+            wealth *= 1.0 + self.bet * (2 * w - 1)
+            path.append(wealth)
+            index += 1
+            if crossed < 0 and wealth >= threshold:
+                crossed = index
+        return wealth, path, crossed
+
+    def decide(self, candidate, evaluation):
+        from reef.train.evaluation.contracts import SelectionDecision  # lazy
+
+        candidate_scores = tuple(evaluation.metrics.get("candidate_scores", ()))
+        current_scores = tuple(evaluation.metrics.get("current_scores", ()))
+        final, path, crossed = self.wealth_path(candidate_scores, current_scores)
+        peak = max(path, default=1.0)
+        threshold = 1.0 / self.alpha
+        selected = crossed > 0
+        wins, losses, excluded = _tally(candidate_scores, current_scores)
+        reason = (
+            f"e-process (PACE): wealth peak {peak:.3f} vs threshold {threshold:.1f} "
+            f"(lambda={self.bet}, alpha={self.alpha}); {wins}/{wins + losses} discordant wins, "
+            f"{excluded} unmeasurable; " + (f"crossed at pair {crossed}" if crossed > 0 else "never crossed")
+        )
+        log.info("gate: %s -> %s", reason, "select" if selected else "reject")
+        return SelectionDecision(
+            outcome="select" if selected else "reject",
+            policy="e_process",
+            policy_version="pace-2606.08106",
+            reason=reason,
+            evaluation=evaluation,
+            metrics={
+                "wins": wins, "losses": losses, "excluded": excluded, "n": wins + losses,
+                "wealth_final": final, "wealth_peak": peak, "threshold": threshold,
+                "crossed_at": crossed,
+                # 同一批数据在符号检验下的结论,便于直接对照两种判据
+                "p_value": p_value(wins, wins + losses),
+            },
+        )
+
+
 class WinsOverLossesSelector:
     """reef 自带的规则:胜数 > 负数就发布。**只为消融对照存在。**
 
@@ -173,9 +260,13 @@ def build_selector():
     """
     from .ablation import current
 
-    if current().gate == "wins_over_losses":
+    gate = current().gate
+    if gate == "wins_over_losses":
         log.warning("gate: 消融臂 wins_over_losses(假阳性率 50%),不是默认判据")
         return WinsOverLossesSelector()
+    if gate == "e_process":
+        log.info("gate: e-process(PACE 2606.08106),alpha=0.05 lambda=0.5")
+        return EProcessSelector()
     return SignTestSelector(alpha=0.10)
 
 

@@ -36,7 +36,11 @@ from dataclasses import dataclass, fields
 CHOICES: dict[str, tuple[str, ...]] = {
     # 闸门判据。wins_over_losses 是 reef 自带的规则,在这套系统上假阳性率 50%
     # (候选与现版无差别时,"正面多于反面"本来就有 1/2 的概率),与重复次数无关。
-    "gate": ("sign_test", "wins_over_losses"),
+    # e_process = PACE(arXiv 2606.08106)的 testing-by-betting 闸门。零假设与符号检验
+    # 相同(配对、丢平局、H0 下不一致对各半),差别是序贯判定:E<-E*(1+λ(2w-1)),
+    # E>=1/α 即提交,由 Ville 不等式在任意停时控制假提交率。它不是"缺陷臂"——
+    # 是一个**更强的对照**:我们这个域有天花板,能回答"错误率控住了,质量真的更好吗"。
+    "gate": ("sign_test", "wins_over_losses", "e_process"),
     # 什么算"失败"、于是进 batch。absolute 是一把绝对尺子(data.max_score=0.5),
     # 而 12 道题的上界差 46.5 倍,实测 4/12 判反 —— 有巨大改进空间的题永不进 batch,
     # 已经做到头的题反而进。
