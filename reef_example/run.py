@@ -245,6 +245,11 @@ def main() -> None:
     ablation = current_ablation()
     log(f"== 消融配置:{ablation.label()} | 全字段 {ablation.as_dict()}")
     log(f"== 隔离:work={WORK} service={SERVICE_URL}")
+    # 等待上限也要写进日志:它到点就 sys.exit(2),而 run.sh 的 EXIT trap 会把 reef
+    # 一起杀掉 —— 正在跑的那一步于是没有落盘,只留下前面几步。步数变多、每步
+    # episode 变多时(RESTORE_TASK_IDS 一放开就是 4 倍),3600s 的默认值不够,
+    # 而超时退出的日志长得和"跑完了没人赢"一模一样。
+    log(f"== 等待上限:{PULL_TIMEOUT_S:.0f}s(PULL_TIMEOUT_S);到点即退出并停掉 reef")
     threshold = batch_threshold()
     log(f"== 失败判据:reported <= {threshold} 进 batch(读自 recipe 的 data.max_score)")
     failures = 0

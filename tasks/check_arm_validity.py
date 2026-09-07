@@ -38,7 +38,7 @@ def check(work: Path, n_expect: int) -> list[tuple[str, str, str]]:
     out.append((OK if right else (WAIT if not text else BAD), "隔离正确", iso[0][-90:] if iso else "没有「隔离」行"))
 
     trace = work / "results" / "trace.jsonl"
-    n_tr = sum(1 for _ in trace.open()) if trace.exists() else 0
+    n_tr = sum(1 for _ in trace.open(encoding="utf-8")) if trace.exists() else 0
     out.append((OK if n_tr else WAIT, "trace 在长", f"{n_tr} 事件"))
 
     recipe = work / "recipes" / "harness_evolve.yaml"
@@ -49,7 +49,7 @@ def check(work: Path, n_expect: int) -> list[tuple[str, str, str]]:
         out.append((WAIT, "配对数", "recipe 还没生成"))
 
     commits = sorted(work.glob("agent-record/*.commits.jsonl"))
-    ns = [json.loads(l)["metrics"]["n"] for p in commits for l in p.read_text().splitlines() if l.strip()]
+    ns = [json.loads(l)["metrics"]["n"] for p in commits for l in p.read_text(encoding="utf-8").splitlines() if l.strip()]
     out.append((OK if ns else WAIT, "闸门 n", f"{ns}" if ns else "还没出第一步"))
     return out
 
@@ -67,7 +67,7 @@ def main() -> None:
         for mark, name, detail in check(work, args.n_expect):
             print(f"   {mark} {name:<8} {detail}")
             bad += mark == BAD
-        cfg = [l for l in (work / "run.log").read_text(errors="ignore").splitlines() if "消融配置" in l] if (work / "run.log").exists() else []
+        cfg = [l for l in (work / "run.log").read_text(encoding="utf-8", errors="ignore").splitlines() if "消融配置" in l] if (work / "run.log").exists() else []
         configs.append(cfg[0].split("消融配置:")[-1] if cfg else None)
 
     known = [c for c in configs if c]
