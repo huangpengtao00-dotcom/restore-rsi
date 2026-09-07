@@ -19,8 +19,15 @@ reef.log(见 reef-propose-errors.log):
       'model endpoint unreachable: <urlopen error [Errno 8]
        nodename nor servname provided, or not known>')
 
-DNS 解析失败,三次。事后复测:解析 0.01–0.04s,网关 HTTP 200。是一次瞬时抽风,
-而三个 step 因为各自秒失败,被它一口气烧完。同批另外四个臂 0 次。
+DNS 解析失败,三次。事后复测:解析 0.01–0.04s,网关 HTTP 200。同批另外四个臂 0 次。
+
+**订正(当晚稍后查明):最初写的"瞬时网络抽风"是错的,真因是这台 Mac 睡了。**
+`pmset -g log` 显示 19:33:03 `Clamshell Sleep`(合盖)、19:36:57 `Maintenance Sleep`
+睡了 938 秒 —— 三次 propose 失败正落在这两段里。DNS 解析失败只是症状:
+系统进 Deep Idle 时网络栈断开,而进程在被冻结前后各发出了一次调用。
+
+同一轮 148 分钟里机器共睡 16 次、累计 73 分钟,**占墙钟时间的 50%**。
+睡眠期间进程冻结、不发请求,因此**在任何日志里都不留痕迹** —— run.log 只是看起来慢。
 
 ## 为什么只有 propose 中招
 
@@ -47,8 +54,23 @@ episode 路径上是"重试一下就好",在 propose 路径上是"这一步没�
 ## 已做
 
 - 该臂数据作废,原样归档在 `work/n36-mf-void-dns-20260907/`,重跑
-- `tasks/check_arm_validity.py` 新增一条判据:落盘里出现 `skipped` 就报红,
-  不让它混进步数。拿这份废数据验过会红。
+- `tasks/check_arm_validity.py` 新增两条判据:
+  1. 落盘里出现 `skipped` 就报红(拿这份废数据验过会红)
+  2. **报告这一臂跑的那段时间里机器睡了多久**,超过 60 秒即红。判据取自 pmset,
+     不靠猜:`Entering Sleep state` 行末尾的 `N secs` 就是时长(用两组数据与随后的
+     DarkWake 时间戳交叉核对过)
+- `caffeinate -dimsu` 阻止空闲睡眠。**合盖睡眠(Clamshell)阻止不了** ——
+  那需要人把盖子打开,或接外接显示器
+
+## 已核:出结论的那批数据没有受影响
+
+同日报告的 12 步结论出自两个窗口,两个都全程清醒:
+
+    基线 3 步      01:05-02:15   睡 0 次   0s
+    四缺陷臂 9 步  17:14-18:26   睡 0 次   0s
+
+并逐步核过完整性:12 步的候选/现版分数数组都是 9+9,排除 0、episode 失败 0,
+胜+负+平与配对数一致。
 
 ## 没做
 

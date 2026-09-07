@@ -16,13 +16,59 @@
 from __future__ import annotations
 
 import argparse
+import datetime
 import json
+import re
+import subprocess
 import sys
 from pathlib import Path
 
 import yaml
 
 OK, BAD, WAIT = "✅", "❌", "…"
+
+
+def sleep_during(work: Path) -> tuple[int, int, str]:
+    """(睡眠秒数, 次数, 说明) —— 这一臂跑的那段时间里,这台机器睡了多久。
+
+    2026-09-07 实测:n=36 那轮 148 分钟里机器睡了 73 分钟(占 50%),其中最长
+    一段 989s 是 Clamshell Sleep(合上盖子)。睡眠期间进程冻结、不发请求、
+    **也就不会在任何日志里留下痕迹** —— 时间白流,而 run.log 只是看起来慢。
+
+    真正的伤害不在慢:睡下去的那一刻有在途请求就会断。同一轮里 propose 因此
+    连挂三次,落盘成 {"skipped": "no proposal"}(见 evidence/2026-09-07-dns-blip-as-no-proposal)。
+
+    所以每份有效性报告都要带这个数。判据取自 pmset,不是猜:`Entering Sleep state`
+    行末尾的 `N secs` 就是该次睡眠时长(用 19:03:41 的 15s、19:04:41 的 65s 与
+    随后的 DarkWake 时间戳交叉核对过)。
+    """
+    log = work / "run.log"
+    if not log.exists():
+        return 0, 0, "没有 run.log"
+    lines = [l for l in log.read_text(encoding="utf-8", errors="ignore").splitlines() if l[:2].isdigit()]
+    if not lines:
+        return 0, 0, "run.log 里没有带时间戳的行"
+    day = datetime.date.fromtimestamp(log.stat().st_mtime)
+    def stamp(line: str) -> datetime.datetime:
+        return datetime.datetime.combine(day, datetime.time.fromisoformat(line[:8]))
+    lo, hi = stamp(lines[0]), stamp(lines[-1])
+    if hi < lo:                       # 跨午夜
+        hi += datetime.timedelta(days=1)
+    try:
+        out = subprocess.run(["pmset", "-g", "log"], capture_output=True, text=True, timeout=60).stdout
+    except (OSError, subprocess.SubprocessError) as exc:
+        return 0, 0, f"读不到 pmset:{exc}"     # 探测失败不等于「没睡」,如实说
+    total = count = 0
+    for line in out.splitlines():
+        m = re.match(r"^(\d{4}-\d\d-\d\d \d\d:\d\d:\d\d) \S+ Sleep\s+Entering Sleep state.*?(\d+) secs\s*$", line)
+        if not m:
+            continue
+        when = datetime.datetime.strptime(m.group(1), "%Y-%m-%d %H:%M:%S")
+        if lo <= when <= hi:
+            total += int(m.group(2))
+            count += 1
+    span = max(1, int((hi - lo).total_seconds()))
+    return total, count, f"{total}s / 跨度 {span}s = {total / span * 100:.0f}%"
 
 
 def check(work: Path, n_expect: int) -> list[tuple[str, str, str]]:
@@ -61,6 +107,10 @@ def check(work: Path, n_expect: int) -> list[tuple[str, str, str]]:
 
     ns = [m["n"] for m in steps if "n" in m]
     out.append((OK if ns else WAIT, "闸门 n", f"{ns}" if ns else "还没出第一步"))
+
+    slept, times, detail = sleep_during(work)
+    mark = OK if slept < 60 else BAD
+    out.append((mark, "机器睡眠", f"{times} 次,{detail}" + ("" if slept < 60 else " —— 在途请求会断,时间也白流")))
     return out
 
 
