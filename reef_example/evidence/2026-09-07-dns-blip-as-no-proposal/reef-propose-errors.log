@@ -1,0 +1,3 @@
+propose: served model call failed: ModelBindingError('model endpoint unreachable: <urlopen error [Errno 8] nodename nor servname provided, or not known>')
+propose: served model call failed: ModelBindingError('model endpoint unreachable: <urlopen error [Errno 8] nodename nor servname provided, or not known>')
+propose: served model call failed: ModelBindingError('model endpoint unreachable: <urlopen error [Errno 8] nodename nor servname provided, or not known>')

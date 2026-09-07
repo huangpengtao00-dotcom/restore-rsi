@@ -49,7 +49,17 @@ def check(work: Path, n_expect: int) -> list[tuple[str, str, str]]:
         out.append((WAIT, "配对数", "recipe 还没生成"))
 
     commits = sorted(work.glob("agent-record/*.commits.jsonl"))
-    ns = [json.loads(l)["metrics"]["n"] for p in commits for l in p.read_text(encoding="utf-8").splitlines() if l.strip()]
+    steps = [json.loads(l)["metrics"] for p in commits for l in p.read_text(encoding="utf-8").splitlines() if l.strip()]
+
+    # 一次 DNS 抽风把 n36-mf 三步全烧了,每步落盘成 {"skipped": "no proposal"} ——
+    # 步数照涨、日志无异常、读起来像"模型这轮没想到改动"这个合法结果。
+    # episode 的推理调用有 4 次重试,propose 没有,一次失败就跳过。
+    # 所以 skipped 必须单独报,不能混进步数里。(2026-09-07 实测)
+    skipped = [m["skipped"] for m in steps if "skipped" in m]
+    if skipped:
+        out.append((BAD, "跳过的步", f"{len(skipped)} 步没有候选:{sorted(set(skipped))} —— 查 reef.log 的 propose"))
+
+    ns = [m["n"] for m in steps if "n" in m]
     out.append((OK if ns else WAIT, "闸门 n", f"{ns}" if ns else "还没出第一步"))
     return out
 
