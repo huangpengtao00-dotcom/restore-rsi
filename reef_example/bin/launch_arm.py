@@ -1,7 +1,10 @@
 #!/usr/bin/env python3
 """发车一个消融臂,**脱离当前会话组**。
 
-    launch_arm.py <臂名> <端口> <RESTORE_ABLATION 或 baseline> [max_score]
+    launch_arm.py <臂名> <端口> <RESTORE_ABLATION 或 baseline> [max_score] [run.py 的参数...]
+
+环境变量原样传下去(RESTORE_TASK_IDS / RESTORE_ORACLE 等),所以"评估用几道题"
+和"录制跑几道题"可以分开设:前者进 recipe,后者用 `--limit N`。
 
 `nohup cmd &` 在 macOS 上不够:进程仍在同一个会话组里,主控会话一中断就连坐。
 2026-09-07 实测——四个臂 record 段全跑完、evolve 正在跑,一次上下文压缩全部被杀,
@@ -28,6 +31,7 @@ def main() -> int:
         return 2
     arm, port, ablation = sys.argv[1], sys.argv[2], sys.argv[3]
     max_score = sys.argv[4] if len(sys.argv) > 4 else "0.9"
+    extra = sys.argv[5:]          # 透传给 run.sh -> run.py
 
     runner = HERE / "run.sh"
     if not runner.is_file():
@@ -45,14 +49,17 @@ def main() -> int:
     log = Path(f"/tmp/abl-{arm}.log")
     with log.open("w") as handle:
         proc = subprocess.Popen(
-            ["./run.sh"], cwd=HERE, env=env,
+            ["./run.sh", *extra], cwd=HERE, env=env,
             stdout=handle, stderr=subprocess.STDOUT,
             start_new_session=True,          # setsid:pid == pgid,主控中断不连坐
         )
     pidfile = HERE / work / "run.pid"
     pidfile.parent.mkdir(parents=True, exist_ok=True)
     pidfile.write_text(f"{proc.pid}\n", encoding="utf-8")
-    print(f"{arm}: pid={proc.pid} pgid={proc.pid} port={port} ablation={ablation} log={log}")
+    print(
+        f"{arm}: pid={proc.pid} pgid={proc.pid} port={port} ablation={ablation} "
+        f"tasks={os.environ.get('RESTORE_TASK_IDS', 'serve.yaml 默认')} args={extra or '无'} log={log}"
+    )
     return 0
 
 

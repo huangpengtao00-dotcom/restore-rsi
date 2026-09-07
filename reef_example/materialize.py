@@ -141,6 +141,24 @@ def main() -> None:
     if not manifest_path.exists():
         sys.exit(f"missing {manifest_path}: run `uv run python tasks/make_tasks.py` first")
     by_id = {task["task_id"]: task for task in json.loads(manifest_path.read_text(encoding="utf-8"))}
+
+    # 评估用几道题,决定闸门的样本量 n —— 而 n 决定闸门能不能开。2026-09-07 实测:
+    # 3 题 x 3 重复,丢掉平局后每步 n 落在 2-8,而 alpha=0.10 的符号检验在 n<=6 时
+    # 要求全胜、一场不能输。12 步 0 发布,基线也一样。n=36 时只要赢 64%,才是检验。
+    #
+    # RESTORE_TASK_IDS="all" 用满 manifest 里的题(serve.yaml 的三道排在最前,
+    # 好让 run.py --limit 3 录到的仍是原来那三道,跨轮次可比);也可以给逗号分隔
+    # 的 id 列表。**认不出的 id 直接退出**,不静默丢 —— 少一道题就少一批样本,
+    # 而那种数据看起来完全正常。
+    if (spec := os.environ.get("RESTORE_TASK_IDS")):
+        if spec.strip() == "all":
+            head = list(restore["task_ids"])
+            chosen = head + [t for t in by_id if t not in head]
+        else:
+            chosen = [c.strip() for c in spec.split(",") if c.strip()]
+        restore = {**restore, "task_ids": chosen}
+        print(f"  task_ids overridden to {len(chosen)} tasks (RESTORE_TASK_IDS={spec!r})")
+
     missing = [task_id for task_id in restore["task_ids"] if task_id not in by_id]
     if missing:
         sys.exit(f"task ids not in manifest: {missing}")
