@@ -190,3 +190,26 @@ def test_run_sh_refuses_to_start_on_a_busy_port():
     assert 'lsof -ti:"$PORT"' in src, "启动前必须检查端口"
     guard = src[src.index('lsof -ti:"$PORT"'):]
     assert "exit 1" in guard[:600], "占用时必须退出,而不是警告后继续"
+
+
+# ------------------------------------------------- 发车必须脱离会话组
+
+def test_launcher_detaches_the_session():
+    """`nohup &` 不够,发车必须 start_new_session。
+
+    2026-09-07 实测:四个臂 record 段全跑完、evolve 正在跑,一次会话中断把它们全杀了,
+    每臂只留下 1–2 个 step 的落盘数据。而日志尾部是正常的 "evolve step still running",
+    没有任何报错 —— **从日志完全看不出它们是被杀的**,只能从「进程没了但没有收尾行」推断。
+
+    记忆里已有同款教训(那次是 Popen 派工人),这次换成 nohup 又栽一遍,所以钉成判据。
+    """
+    src = (ROOT / "reef_example" / "bin" / "launch_arm.py").read_text(encoding="utf-8")
+    assert "start_new_session=True" in src, "发车必须让子进程 setsid,否则主控中断会连坐"
+    assert "run.pid" in src, "pid 要落盘 —— 停车按 pid,不按 pkill -f 模式(会误杀同类)"
+
+
+def test_launcher_clears_ablation_for_baseline():
+    """baseline 臂必须**删掉**环境变量,而不是传一个 'baseline' 字符串进去 ——
+    那会被 Ablation.parse 当成拼错的开关而报错。"""
+    src = (ROOT / "reef_example" / "bin" / "launch_arm.py").read_text(encoding="utf-8")
+    assert 'env.pop("RESTORE_ABLATION"' in src
