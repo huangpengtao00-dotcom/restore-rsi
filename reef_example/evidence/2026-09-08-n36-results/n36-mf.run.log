@@ -1,0 +1,59 @@
+20:41:34 == record+report: 3 task(s), scenario restore-evolve
+20:41:34 == 消融配置:measurement_failure=zero | 全字段 {'gate': 'sign_test', 'batch_criterion': 'attained', 'diagnosis': 'decoupled', 'measurement_failure': 'zero'}
+20:41:34 == 隔离:work=/Users/opall/research/restore-rsi-ablation/reef_example/work/n36-mf service=http://127.0.0.1:8905
+20:41:34 == 等待上限:28800s(PULL_TIMEOUT_S);到点即退出并停掉 reef
+20:41:34 == 失败判据:reported <= 0.9 进 batch(读自 recipe 的 data.max_score)
+20:41:34 task 1 t32647412: relaying (up to 6 turns)
+20:41:45   turn 1: 1 command(s) ['diagnose'] reply 'restore diagnose /Users/opall/research/restore-rsi-ablation/reef_example/work/n36-mf/inputs/t32647412.png'
+20:41:51   turn 2: 1 command(s) ['run'] reply 'restore run dehaze_dcp /Users/opall/research/restore-rsi-ablation/reef_example/work/n36-mf/inputs/t32647412.png /Users/opall/research/restore-rsi-ablation/reef_'
+20:42:12   turn 3: 1 command(s) ['diagnose'] reply 'restore diagnose /var/folders/fl/s0ctmflj601_6c_4j1nqcm7h0000gp/T/restore-record-t32647412-76wq7qla/step1_dehaze_dcp.png'
+20:42:33   turn 4: 1 command(s) ['run'] reply 'restore run lowlight_gamma /var/folders/fl/s0ctmflj601_6c_4j1nqcm7h0000gp/T/restore-record-t32647412-76wq7qla/step1_dehaze_dcp.png /Users/opall/research/restore'
+20:42:40   turn 5: 1 command(s) ['diagnose'] reply 'restore diagnose /var/folders/fl/s0ctmflj601_6c_4j1nqcm7h0000gp/T/restore-record-t32647412-76wq7qla/step2_lowlight_gamma.png'
+20:43:34   turn 6: 0 command(s) [] reply '/var/folders/fl/s0ctmflj601_6c_4j1nqcm7h0000gp/T/restore-record-t32647412-76wq7qla/step2_lowlight_gamma.png'
+20:43:34 task 1 t32647412: reported 0.7267 (episode=record-t32647412-1788784894 turns=6 score=0.4158 ceiling=0.5722(d3) attained=0.727 chain=dehaze_dcp>lowlight_gamma) receipts ['ebb31cd7678b4bd38e2f27f40cbdeeca', 'fa78670333574f5d968c9d38ccd225b2', '2924297637e64147a21e7e41fd5212df', '1eeda365f444417a92842b9cc6f52b30', '35e6b58a0fd44097bc46d0c2975a4b5a', '2be0840260fe46339a5e17751bb91504'] 121s
+20:43:34 task 2 t9c652a0a: relaying (up to 6 turns)
+20:43:39   turn 1: 1 command(s) ['diagnose'] reply 'restore diagnose /Users/opall/research/restore-rsi-ablation/reef_example/work/n36-mf/inputs/t9c652a0a.png'
+20:43:46   turn 2: 1 command(s) ['run'] reply 'restore run dehaze_dcp /Users/opall/research/restore-rsi-ablation/reef_example/work/n36-mf/inputs/t9c652a0a.png 01_dehazed.png'
+20:44:03   turn 3: 1 command(s) ['run'] reply 'restore run dehaze_dcp /Users/opall/research/restore-rsi-ablation/reef_example/work/n36-mf/inputs/t9c652a0a.png /Users/opall/research/restore-rsi-ablation/reef_'
+20:44:48   turn 4: 1 command(s) ['diagnose'] reply 'restore diagnose /var/folders/fl/s0ctmflj601_6c_4j1nqcm7h0000gp/T/restore-record-t9c652a0a-qqgjo2qo/step2_dehaze_dcp.png'
+20:46:06   turn 5: 1 command(s) ['run'] reply 'restore run lowlight_gamma /var/folders/fl/s0ctmflj601_6c_4j1nqcm7h0000gp/T/restore-record-t9c652a0a-qqgjo2qo/step2_dehaze_dcp.png /Users/opall/research/restore'
+20:46:49   turn 6: 1 command(s) ['diagnose'] reply 'restore diagnose step3_lowlight_gamma.png'
+20:46:50 task 2 t9c652a0a: reported 0.0227 (episode=record-t9c652a0a-1788785015 turns=6 score=0.0082 ceiling=0.3620(d3) attained=0.023 chain=dehaze_dcp>dehaze_dcp>lowlight_gamma) receipts ['3b4ddfed180d4d9a941f8ee1ae75e0a5', '677efc8485934e6f8ac6883b5f92f088', '5994e370d54042f285db91aec863b84a', '6943b0a1c66a4fee97a2a640a2953916', '1b825a2076614f0e8e685efb88b841fc', '6d4abb83208b41899822d512547b0c37'] 195s
+20:46:50 task 3 t37cbd87d: relaying (up to 6 turns)
+20:46:54   turn 1: 1 command(s) ['diagnose'] reply 'restore diagnose /Users/opall/research/restore-rsi-ablation/reef_example/work/n36-mf/inputs/t37cbd87d.png'
+20:46:59   turn 2: 1 command(s) ['run'] reply 'restore run denoise_bilateral /Users/opall/research/restore-rsi-ablation/reef_example/work/n36-mf/inputs/t37cbd87d.png /Users/opall/research/restore-rsi-ablatio'
+20:47:31   turn 3: 1 command(s) ['diagnose'] reply 'restore diagnose /Users/opall/research/restore-rsi-ablation/reef_example/work/n36-mf/inputs/t37cbd87d_dn.png'
+20:47:55   turn 4: 1 command(s) ['run'] reply 'restore run lowlight_gamma step1_denoise_bilateral.png step2_lowlight_gamma.png'
+20:48:35   turn 5: 1 command(s) ['diagnose'] reply 'restore diagnose step2_lowlight_gamma.png'
+20:48:40   turn 6: 1 command(s) ['run'] reply 'restore run denoise_bilateral step2_lowlight_gamma.png step3_denoise_bilateral2.png'
+20:48:41 task 3 t37cbd87d: reported 0.8205 (episode=record-t37cbd87d-1788785210 turns=6 score=0.4467 ceiling=0.5444(d3) attained=0.821 chain=denoise_bilateral>lowlight_gamma>denoise_bilateral) receipts ['628f30adb6af414bb39baaac6f18af42', '397fb34247914b699c908007ff58e5fe', 'f2f43d307b9241ce80f99964ac9fd58c', 'b37c9b9ea3e64d5da26a2967e7f60534', '934dbfc6140f4cceb25bccc939c8ead4', 'aba37bb072ec4658b05ebb036e2b0089'] 111s
+20:48:41 3 failing report(s) batched; each triggers one gated evolve step (episodes take minutes)
+20:58:41   service busy (TimeoutError); evolve step still running
+21:08:51   service busy (TimeoutError); evolve step still running
+21:19:01   service busy (TimeoutError); evolve step still running
+21:29:11   service busy (TimeoutError); evolve step still running
+21:39:21   service busy (TimeoutError); evolve step still running
+21:49:31   service busy (TimeoutError); evolve step still running
+21:59:41   service busy (TimeoutError); evolve step still running
+22:09:51   service busy (TimeoutError); evolve step still running
+22:20:01   service busy (TimeoutError); evolve step still running
+22:30:11   service busy (TimeoutError); evolve step still running
+22:40:21   service busy (TimeoutError); evolve step still running
+22:50:31   service busy (TimeoutError); evolve step still running
+23:00:41   service busy (TimeoutError); evolve step still running
+23:10:51   service busy (TimeoutError); evolve step still running
+23:21:01   service busy (TimeoutError); evolve step still running
+23:31:11   service busy (TimeoutError); evolve step still running
+23:41:21   service busy (TimeoutError); evolve step still running
+23:51:31   service busy (TimeoutError); evolve step still running
+00:01:41   service busy (TimeoutError); evolve step still running
+00:11:51   service busy (TimeoutError); evolve step still running
+00:22:01   service busy (TimeoutError); evolve step still running
+00:36:38   service busy (TimeoutError); evolve step still running
+00:46:48   service busy (TimeoutError); evolve step still running
+00:56:58   service busy (TimeoutError); evolve step still running
+01:07:08   service busy (TimeoutError); evolve step still running
+05:13:57   service busy (TimeoutError); evolve step still running
+08:20:13   service busy (TimeoutError); evolve step still running
+09:41:30   status: {"last_drain_at": null, "preload_errors": {}, "scenarios": {"restore-evolve": {"batch_ready": true, "checkpoint_storage": null, "current_runtime_load_id": null, "inference_admission": {"active": 0, "open": true}, "last_committed_step": {"metrics": {"candidate_score": 15.6891, "current_score": 15.958
+10:07:36   status: {"last_drain_at": null, "preload_errors": {}, "scenarios": {"restore-evolve": {"batch_ready": false, "checkpoint_storage": null, "current_runtime_load_id": null, "inference_admission": {"active": 0, "open": true}, "last_committed_step": {"metrics": {"skipped": "no proposal", "steps": 3, "traces": 1}

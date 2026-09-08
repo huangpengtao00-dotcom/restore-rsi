@@ -1,0 +1,259 @@
+18:45:41 == record+report: 3 task(s), scenario restore-evolve
+18:45:41 == 消融配置:gate=wins_over_losses | 全字段 {'gate': 'wins_over_losses', 'batch_criterion': 'attained', 'diagnosis': 'decoupled', 'measurement_failure': 'raise'}
+18:45:41 == 隔离:work=/Users/opall/research/restore-rsi-ablation/reef_example/work/n36-gate service=http://127.0.0.1:8902
+18:45:41 == 等待上限:28800s(PULL_TIMEOUT_S);到点即退出并停掉 reef
+18:45:41 == 失败判据:reported <= 0.9 进 batch(读自 recipe 的 data.max_score)
+18:45:41 task 1 t32647412: relaying (up to 6 turns)
+18:46:04   turn 1: 1 command(s) ['diagnose'] reply 'restore diagnose /Users/opall/research/restore-rsi-ablation/reef_example/work/n36-gate/inputs/t32647412.png'
+18:46:11   turn 2: 1 command(s) ['run'] reply 'restore run dehaze_dcp /Users/opall/research/restore-rsi-ablation/reef_example/work/n36-gate/inputs/t32647412.png dehazed.png'
+18:46:45   turn 3: 1 command(s) ['diagnose'] reply 'restore diagnose dehazed.png'
+18:47:20   turn 4: 1 command(s) ['run'] reply 'restore run lowlight_gamma step1_dehaze_dcp.png step2_lowlight_gamma.png'
+18:47:28   turn 5: 1 command(s) ['diagnose'] reply 'restore diagnose step2_lowlight_gamma.png'
+18:48:01   turn 6: 0 command(s) [] reply 'Final restored image:\n/var/folders/fl/s0ctmflj601_6c_4j1nqcm7h0000gp/T/restore-record-t32647412-q20d5tkz/step2_lowlight_gamma.png'
+18:48:01 task 1 t32647412: reported 0.7267 (episode=record-t32647412-1788777941 turns=6 score=0.4158 ceiling=0.5722(d3) attained=0.727 chain=dehaze_dcp>lowlight_gamma) receipts ['3b6eef176b6e426486e06aa206658b7a', 'ca66c050fb464237a18aa1c5dafaa786', '46080ff5211d4396ad6d78a8134ee70e', '22a5a17508e545ca93bac12567e65fc4', '0a54b3b95ac94d8d88e5cf854a311f78', '6ffc42443c494fb6a89638e9c23345dc'] 140s
+18:48:01 task 2 t9c652a0a: relaying (up to 6 turns)
+18:48:04   turn 1: 1 command(s) ['diagnose'] reply 'restore diagnose /Users/opall/research/restore-rsi-ablation/reef_example/work/n36-gate/inputs/t9c652a0a.png'
+18:48:09   turn 2: 1 command(s) ['run'] reply 'restore run dehaze_dcp t9c652a0a.png step1_dehazed.png'
+18:49:00   turn 3: 1 command(s) ['run'] reply 'restore run lowlight_gamma /var/folders/fl/s0ctmflj601_6c_4j1nqcm7h0000gp/T/restore-record-t9c652a0a-17i2z590/step1_dehaze_dcp.png step2_gamma.png'
+18:49:31   turn 4: 1 command(s) ['diagnose'] reply 'restore diagnose /var/folders/fl/s0ctmflj601_6c_4j1nqcm7h0000gp/T/restore-record-t9c652a0a-17i2z590/step2_lowlight_gamma.png'
+18:50:17   turn 5: 0 command(s) [] reply '/Users/opall/research/restore-rsi-ablation/reef_example/work/n36-gate/step2_lowlight_gamma.png'
+18:51:30   turn 6: 0 command(s) [] reply '/var/folders/fl/s0ctmflj601_6c_4j1nqcm7h0000gp/T/restore-record-t9c652a0a-17i2z590/step2_lowlight_gamma.png'
+18:51:30 task 2 t9c652a0a: reported 0.5981 (episode=record-t9c652a0a-1788778081 turns=6 score=0.2165 ceiling=0.3620(d3) attained=0.598 chain=dehaze_dcp>lowlight_gamma) receipts ['397fe6933b774a018f49ba6107a6b58f', '373443992f3448ed80864b5bbf62fd3b', '75e0079612ae4d7bab7eb5e4bbafb2ee', '359e457571184feda5fd25fdb01cdc76', '206d9bcfcc1b4adda512b3e545207e6b', '5f7ae74c7e10474aac6a32348563f178'] 209s
+18:51:30 task 3 t37cbd87d: relaying (up to 6 turns)
+18:51:33   turn 1: 1 command(s) ['diagnose'] reply 'restore diagnose /Users/opall/research/restore-rsi-ablation/reef_example/work/n36-gate/inputs/t37cbd87d.png'
+18:51:38   turn 2: 1 command(s) ['run'] reply 'restore run denoise_bilateral t37cbd87d.png step1_denoise.png'
+18:51:53   turn 3: 0 command(s) [] reply 'ls -la'
+18:52:43   turn 4: 1 command(s) ['diagnose'] reply 'restore diagnose step1_denoise.png'
+18:52:48   turn 5: 1 command(s) ['run'] reply 'restore run lowlight_clahe step1_denoise_bilateral.png step2_clahe.png'
+18:53:23   turn 6: 1 command(s) ['diagnose'] reply 'restore diagnose step2_lowlight_clahe.png'
+18:53:25 task 3 t37cbd87d: reported 0.2842 (episode=record-t37cbd87d-1788778290 turns=6 score=0.1547 ceiling=0.5444(d3) attained=0.284 chain=denoise_bilateral>lowlight_clahe) receipts ['df5c537c0ee349b8ac734d9240495c42', 'b2b1fd7f158d46e5a9c3fe24922b240d', '9ca91dcaf73a48e6885089fb95ba7353', '9c32ef8a9fde4facbb32d7b6bc46c47d', '5002bfc7e7dd49e3b68ead35952aa65c', '8f2011edef504ef4b0db9d4a474afcda'] 115s
+18:53:25 3 failing report(s) batched; each triggers one gated evolve step (episodes take minutes)
+19:04:07   service busy (TimeoutError); evolve step still running
+19:27:09   service busy (TimeoutError); evolve step still running
+20:15:15   service busy (TimeoutError); evolve step still running
+20:46:06   service busy (TimeoutError); evolve step still running
+20:56:16   service busy (TimeoutError); evolve step still running
+21:06:26   service busy (TimeoutError); evolve step still running
+21:16:36   service busy (TimeoutError); evolve step still running
+21:26:46   service busy (TimeoutError); evolve step still running
+21:36:56   service busy (TimeoutError); evolve step still running
+21:47:06   service busy (TimeoutError); evolve step still running
+21:57:17   service busy (TimeoutError); evolve step still running
+22:07:27   service busy (TimeoutError); evolve step still running
+22:17:37   service busy (TimeoutError); evolve step still running
+22:27:32   status: {"last_drain_at": null, "preload_errors": {}, "scenarios": {"restore-evolve": {"batch_ready": false, "checkpoint_storage": null, "current_runtime_load_id": null, "inference_admission": {"active": 0, "open": true}, "last_committed_step": null, "processor": {}, "scenario_step": 0}}, "serving": {}}
+22:37:37   service busy (TimeoutError); evolve step still running
+22:47:47   service busy (TimeoutError); evolve step still running
+22:57:57   service busy (TimeoutError); evolve step still running
+23:08:07   service busy (TimeoutError); evolve step still running
+23:18:17   service busy (TimeoutError); evolve step still running
+23:28:27   service busy (TimeoutError); evolve step still running
+23:38:37   service busy (TimeoutError); evolve step still running
+23:48:47   service busy (TimeoutError); evolve step still running
+23:58:57   service busy (TimeoutError); evolve step still running
+00:09:07   service busy (TimeoutError); evolve step still running
+00:19:17   service busy (TimeoutError); evolve step still running
+00:29:27   service busy (TimeoutError); evolve step still running
+00:44:04   service busy (TimeoutError); evolve step still running
+00:48:19 published: artifact dcfd4be57d65646fa1a9d6982eb1a6786a5624f6 (parent 87052e9e40b267d06219e7dc9bc8504eefe3da95)
+00:48:19 gate metrics (the evolve step that published this artifact):
+00:48:19 {
+  "candidate_score": 16.4712,
+  "current_score": 15.4277,
+  "episode_failures": 0,
+  "excluded": 0,
+  "failures": {
+    "fixed": 0,
+    "new": 0,
+    "persisting": 0
+  },
+  "losses": 10,
+  "mutation": {
+    "id": "restore-strategy",
+    "op": "update"
+  },
+  "n": 23,
+  "p_value": 0.3388197422027588,
+  "published": true,
+  "selected": true,
+  "selection": {
+    "candidate_id": "restore-evolve:harness_evolve:1:candidate",
+    "evaluation": {
+      "evaluator": "harness_episode_pairs",
+      "evaluator_version": "1",
+      "metadata": {},
+      "metrics": {
+        "candidate_failures": [],
+        "candidate_score": 16.4712,
+        "candidate_scores": [
+          0.3999,
+          0.4158,
+          0.4158,
+          0.2165,
+          0.2165,
+          0.2165,
+          0.5819,
+          0.4948,
+          0.5973,
+          0.0,
+          0.0,
+          0.0,
+          0.5159,
+          0.5159,
+          0.4635,
+          1.0,
+          1.0,
+          1.0,
+          0.8822,
+          0.8822,
+          0.8822,
+          0.1066,
+          0.6562,
+          0.1066,
+          0.8462,
+          0.6953,
+          0.6291,
+          0.7108,
+          0.6101,
+          0.3027,
+          0.0336,
+          0.1588,
+          0.0986,
+          0.2562,
+          0.2137,
+          0.3498
+        ],
+        "current_failures": [],
+        "current_score": 15.4277,
+        "current_scores": [
+          0.5722,
+          0.5722,
+          0.4158,
+          0.2165,
+          0.2165,
+          0.2165,
+          0.6052,
+          0.6072,
+          0.3246,
+          0.0,
+          0.0,
+          0.0,
+          0.5159,
+          0.5159,
+          0.5159,
+          1.0,
+          1.0,
+          0.8724,
+          0.8569,
+          0.8822,
+          0.8822,
+          0.0335,
+          0.2092,
+          0.2383,
+          0.3006,
+          0.3006,
+          0.5051,
+          0.618,
+          0.5726,
+          0.5364,
+          0.2277,
+          0.2396,
+          0.0,
+          0.3255,
+          0.2063,
+          0.3262
+        ],
+        "episode_failures": 0
+      }
+    },
+    "metrics": {
+      "excluded": 0,
+      "losses": 10,
+      "n": 23,
+      "p_value": 0.3388197422027588,
+      "wins": 13
+    },
+    "outcome": "select",
+    "policy": "wins_over_losses",
+    "policy_version": "ablation",
+    "reason": "wins>losses: 13 vs 10 (ablation arm; false-positive rate 50% by construction)"
+  },
+  "steps": 1,
+  "traces": 1,
+  "wins": 13
+}
+00:48:19 evolved skill files:
+00:48:19 --- pi-agent/skills/restore-strategy/SKILL.md ---
+00:48:19 # restore-strategy
+
+Restore the degraded photo from the diagnosis numbers. The judge scores the final image later; you never see a score or clean original during the episode.
+
+## Hard rules
+
+- Only `restore run` may create or modify an image. Never use Python/PIL/numpy/ImageMagick, `cp`, `mv`, `convert`, or any other image tool.
+- Never open, read, copy, search for, or rely on the task manifest, the degradation code, or the clean original.
+- There is no score command. Never write a PSNR/score of your own; the judge computes it afterwards.
+- The first image command is `restore diagnose IN`. After each `restore run OUT`, run `restore diagnose OUT` before deciding the next step.
+- Write each output as a new numbered PNG in the current directory: `o1.png`, `o2.png`, ... Do not overwrite the input.
+- The last `restore run` OUT is the judged final image. Finish your reply with that exact path alone on the last line.
+
+## Reading the diagnosis
+
+`restore diagnose` returns four values, roughly 0..1: haze, low_light, noise, blur.
+
+- A value at or above 0.25 is worth acting on.
+- A value below 0.2 is usually not worth acting on.
+- Haze and low light interact. Dehazing a dark image first makes it darker, so lighten before dehazing when both are present.
+- Gamma or CLAHE brightening amplifies noise. Noise must be reduced before brightening if noise is already present.
+- DCP dehazing can also amplify noise. Denoise before dehazing when both noise and haze are significant.
+- Sharpening amplifies noise; only use it after denoising and only if blur is the remaining significant defect.
+
+## Default conditional pipeline
+
+Let h = haze, l = low_light, n = noise, b = blur from the latest diagnosis, and let `<cur>` be the best current image file. Do not run all steps blindly; run only the steps whose condition is true. Re-diagnose after each step.
+
+1. If n >= 0.25:
+   `restore run denoise_bilateral <cur> oN.png`
+   Use denoise_bilateral first. It prevents gamma/dehaze/sharpen from amplifying noise. Noise alone often needs no second step.
+   Update `<cur>` to oN.png and re-diagnose.
+
+2. If l >= 0.25:
+   `restore run lowlight_gamma <cur> oN.png`
+   Prefer lowlight_gamma over lowlight_clahe: gamma is a monotone global correction and is safer for PSNR. CLAHE creates local halos, so do not use it as the default first lighten step.
+   Update `<cur>` and re-diagnose.
+   If brightening has raised n to 0.25 or above, run denoise_bilateral before continuing.
+
+3. If h >= 0.25:
+   `restore run dehaze_dcp <cur> oN.png`
+   Update `<cur>` and re-diagnose.
+   DCP often darkens. If l is 0.25 or above again, run lowlight_gamma once to lift it.
+
+4. If n is 0.25 or above after any gamma or dehaze step:
+   `restore run denoise_bilateral <cur> oN.png`
+   Update `<cur>` and re-diagnose.
+
+5. If b >= 0.3 and n < 0.25:
+   `restore run sharpen_unsharp <cur> oN.png`
+   Use this once, after denoising, never before denoising. If b is under 0.3, do not sharpen.
+   Update `<cur>` and re-diagnose.
+
+## Common combinations
+
+- Haze + low light: if n >= 0.25, denoise first; then lowlight_gamma; then dehaze_dcp; then lowlight_gamma again only if DCP made l high. Do not dehaze before lightening a dark image.
+- Low light + noise: denoise_bilateral first; then lowlight_gamma; diagnose. If brightening exposed new noise, one more denoise_bilateral may be used.
+- Haze + noise: denoise_bilateral first; then dehaze_dcp; if DCP darkens, then lowlight_gamma.
+- Blur + noise: denoise_bilateral first; if blur remains after denoise and noise is low, sharpen_unsharp once.
+
+## Repeats and stop
+
+- lowlight_gamma may be used twice: before dehazing for a dark+hazy image, and after DCP if DCP made the image dark again. One extra gamma is also allowed if the first gamma leaves l >= 0.5. Do not run a third gamma.
+- denoise_bilateral may be used twice when a later gamma or dehaze step raises noise again. Do not run a third bilateral pass.
+- denoise_median is not the default denoiser. It may be tried once only if one bilateral pass leaves noise above 0.4 and blur is below 0.3, which suggests residual impulse noise.
+- dehaze_dcp should normally be used once. Exception: after one DCP, if h is still >= 0.5 and l is below 0.3, one second DCP can be tried. Otherwise stop.
+- sharpen_unsharp is never used twice.
+- lowlight_clahe is not the first lighten step and is not repeated.
+
+Stop when the latest diagnosis has no remaining value >= 0.25, or when the only high value has already had its one allowed correction and the last restore/diagnose pair changed it by less than 0.05. Do not add extra tools to chase residual numbers; over-processing lowers the judged score.
+
+Then write the final path alone on the last line.
+
